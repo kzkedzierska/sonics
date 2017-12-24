@@ -1,16 +1,16 @@
-#SONiCS - Stutter mONte Carlo Simulation
+# SONiCS - Stutter mONte Carlo Simulation
 
-##SUMMARY
+## SUMMARY
 
 SONiCS performs Monte Carlo simulation of the PCR of Short Tandem Repeats, calculates the likelihood of generating given support read out (reads per allele) out of the PCR pool and based on the log likelihood distributions determines the most probable genotype.
 
-##REQUIREMENTS
+## REQUIREMENTS
 
 * Python 3.6 >= #only tested on 3.6, need to test on 3.4
 * Cython
 * Python modules: logging, numpy, pandas, scipy, pymc, argparse, shutil
 
-##INSTALLATION
+## INSTALLATION
 
 In order to configure the script run the install.sh script. If more than one python3 installed supply the path for the python version. Script will check for all dependencies. 
 
@@ -19,7 +19,7 @@ bash ./install.sh [PATH_TO_PYTHON3]
 ```
 
 
-##DESCRIPTION
+## DESCRIPTION
 
 ```bash
 usage: SONiCS [-h] [-o out_path] [-n FILE_NAME] [-c after_capture]
