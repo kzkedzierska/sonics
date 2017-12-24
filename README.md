@@ -18,6 +18,12 @@ In order to configure the script run the install.sh script. If more than one pyt
 bash ./install.sh [PATH_TO_PYTHON3]
 ```
 
+## RUNNING SONiCS
+
+```bash
+#example run
+python3 run_sonics.py --pvalue_threshold 0.001 --half_random -r 1000 12 "5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
+```
 
 ## DESCRIPTION
 
