@@ -24,16 +24,20 @@ fi
 #check Python version
 major=$("$PATH_TO_PYTHON3" --version | cut -f2 -d' ' | cut -f1 -d'.')
 minor=$("$PATH_TO_PYTHON3" --version | cut -f2 -d' ' | cut -f2 -d'.')
-if [[ major -lt "3" || minor -lt "6" ]]; then
-	error "SONiCS requires Python version 3.6 or higher."
+if [[ major -lt "3" || minor -lt "4" ]]; then
+	error "SONiCS requires Python version 3.4 or higher."
 fi
 
 #check for all the packages
-for package in $(echo "cython logging numpy pandas scipy pymc argparse shutil"); do
+for package in $(echo "cython logging numpy pandas scipy sklearn pymc argparse shutil"); do
 	if ! "$PATH_TO_PYTHON3" -c "import $package" &> /dev/null; then
-		error "Missing $package module."
+		missing_packages=$(echo ${missing_packages} $package | sed 's/sklearn/scikit-learn/g');
 	fi
 done
+
+if [ "X$missing_packages" != "X" ]; then
+	error "Missing module(s): ${missing_packages}."
+fi
 
 #Cythonize SONiCS
 "$PATH_TO_PYTHON3" setup.py build_ext --inplace
@@ -41,3 +45,6 @@ done
 #run test 
 echo "Running test on support read out: 5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
 "$PATH_TO_PYTHON3" run_sonics.py --pvalue_threshold 0.001 --half_random -r 1000 12 "5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
+
+
+echo "Everythings seems to be working allright "

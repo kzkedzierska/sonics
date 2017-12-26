@@ -6,13 +6,13 @@ SONiCS performs Monte Carlo simulation of the PCR of Short Tandem Repeats, calcu
 
 ## REQUIREMENTS
 
-* Python 3.6 >= #only tested on 3.6, need to test on 3.4
+* Python 3.4 >=
 * Cython
-* Python modules: logging, numpy, pandas, scipy, pymc, argparse, shutil
+* Python modules: logging, numpy, pandas, scipy, scikit-learn, pymc, argparse, shutil
 
 ## INSTALLATION
 
-In order to configure the script run the install.sh script. If more than one python3 installed supply the path for the python version. Script will check for all dependencies. 
+In order to configure the script run the install.sh script. If more than one python3 installed supply the path for the python version. Script will check for all dependencies and inform you if some are missing.
 
 ```bash
 bash ./install.sh [PATH_TO_PYTHON3]
