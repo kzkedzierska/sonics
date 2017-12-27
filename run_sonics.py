@@ -137,8 +137,8 @@ def main():
         "-n", "--file_name",
         type=str,
         nargs=1,
-        default="sonics_out",
-        help="Output file name. Default: sonics_out",
+        default="sonics_out.txt",
+        help="Output file name. Default: sonics_out.txt",
         metavar="FILE_NAME"
     )
     parser.add_argument(

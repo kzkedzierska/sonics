@@ -48,6 +48,7 @@ echo "Running test on support read out: 5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
 
 if [ $? == 0 ]; then
     echo "Everythings seems to be working allright "
+    echo "The output of the test is in sonics_out.txt"
     rm -rf build
 else
     echo "The installation did not work as expected. Please check the error"
