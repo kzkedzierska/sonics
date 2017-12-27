@@ -146,7 +146,6 @@ def main():
     parser.add_argument(
         "-n", "--file_name",
         type=str,
-        nargs=1,
         default="sonics_out.txt",
         help="Output file name. Default: sonics_out.txt",
         metavar="FILE_NAME"

@@ -79,7 +79,7 @@ Parameters are chosen on random from the given open interval before each simulat
 * **--up_preference** - up-stutter doesn't have to be more probable than down-stutter; default slippage_down > slippage_up
 * **-f, --floor N** - number that will be subtracted from the lowest number of STRs in the input genotype to set the threshold for the minimum number of STRs in a molecule for it to be included in the simulations. Default: 5
 
-*Formula:**
+*Formula:*
 min_strs = max(1, min(alleles_in_input) - floor)
 
  
