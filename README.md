@@ -8,7 +8,11 @@ SONiCS performs Monte Carlo simulations of the PCR of Short Tandem Repeats, calc
 
 * Python version >= 3.4 
 * Cython
-* Python modules: logging, numpy, pandas, scipy, scikit-learn, pymc, argparse, shutil
+* Python modules: 
+  * numpy, 
+  * pandas, 
+  * scipy, 
+  * pymc
 
 ## INSTALLATION
 
