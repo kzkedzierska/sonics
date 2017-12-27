@@ -39,15 +39,14 @@ def get_alleles(genot_input):
 
 def generate_params(r, pref):
     """generates random parameters from given ranges"""
-    down, up, cap, amp, eff = r
+    down, up, cap, eff = r
     small_number=1e-16 # to make the range exclusive, instead of inclusive
     d = np.random.uniform(down[0] + small_number, down[1])
     u = np.random.uniform(up[0] + small_number, up[1]) if pref else np.random.uniform(up[0] + small_number, d)
     c = np.random.uniform(cap[0] + small_number, cap[1])
-    a = np.random.uniform(amp[0] + small_number, amp[1])
     p = np.random.uniform(eff[0] + small_number, eff[1])  # pcr-efficiency
-    # logging.debug({'down': d, 'up': u, 'capture': c, 'amplification': a, 'efficiency': p})
-    return {'down': d, 'up': u, 'capture': c, 'amplification': a, 'efficiency': p}
+    # logging.debug({'down': d, 'up': u, 'capture': c, 'efficiency': p})
+    return {'down': d, 'up': u, 'capture': c, 'efficiency': p}
 
 
 def cycle_allele(entry, params, floor):
