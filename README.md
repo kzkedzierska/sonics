@@ -27,7 +27,7 @@ python3 run_sonics.py --pvalue_threshold 0.001 --half_random -r 1000 12 "5|1;6|1
 
 ## DESCRIPTION
 
-```bash
+```
 usage: SONiCS [-h] [-o out_path] [-n FILE_NAME] [-c after_capture]
               [-r repetitions] [-p pvalue_threshold] [-s start_copies]
               [-f floor] [-a MIN MAX] [-e MIN MAX] [-d MIN MAX] [-u MIN MAX]
