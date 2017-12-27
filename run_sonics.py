@@ -42,7 +42,7 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_n
                 result = sonics.monte_carlo(repetitions, constants, ranges, intermediate, block, name)
                 elapsed = time.time() - start
                 logging.info(result)
-                op = ".".join([os.path.join(out_path, file_name), "txt"])
+                op = os.path.join(out_path, file_name)
                 with open(op, "a+") as of:
                     of.write("{}\t{}\t{}\n".format(name, block, result))
                 logging.debug("Monte Carlo simulation took: %f second(s)" %elapsed)
@@ -57,7 +57,7 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_n
         result = sonics.monte_carlo(repetitions, constants, ranges)
         elapsed = time.time() - start
         logging.info(result)
-        op = ".".join([os.path.join(out_path, file_name), "txt"])
+        op = os.path.join(out_path, file_name)
         with open(op, "a+") as of:
             of.write("{}\t{}\t{}\n".format(name, block, result))
         logging.debug("Monte Carlo simulation took: %f second(s)" %elapsed)
@@ -137,8 +137,8 @@ def main():
         "-n", "--file_name",
         type=str,
         nargs=1,
-        default="sonics_out",
-        help="Output file name. Default: sonics_out",
+        default="sonics_out.txt",
+        help="Output file name. Default: sonics_out.txt",
         metavar="FILE_NAME"
     )
     parser.add_argument(

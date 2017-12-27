@@ -2,20 +2,20 @@
 
 ## SUMMARY
 
-SONiCS performs Monte Carlo simulation of the PCR of Short Tandem Repeats, calculates the likelihood of generating given support read out (reads per allele) out of the PCR pool and based on the log likelihood distributions determines the most probable genotype.
+SONiCS performs Monte Carlo simulations of the PCR of Short Tandem Repeats, calculates the likelihood of generating given support read out (reads per allele) out of the PCR pool and determines the most probable genotype based on the log likelihood distributions.
 
 ## REQUIREMENTS
 
-* Python 3.4 >=
+* Python version >= 3.4 
 * Cython
 * Python modules: logging, numpy, pandas, scipy, scikit-learn, pymc, argparse, shutil
 
 ## INSTALLATION
 
-In order to configure the script run the install.sh script. If more than one python3 installed supply the path for the python version. Script will check for all dependencies and inform you if some are missing.
+In order to configure the script run the install.sh script. If more than one python3 installed supply the path for the python version. Script will check for all dependencies and inform you if some are missing. After installation it will run a simple test and report on whether everything is working as expected.
 
 ```bash
-bash ./install.sh [PATH_TO_PYTHON3]
+bash install.sh [PATH_TO_PYTHON3]
 ```
 
 ## RUNNING SONiCS
@@ -27,7 +27,7 @@ python3 run_sonics.py --pvalue_threshold 0.001 --half_random -r 1000 12 "5|1;6|1
 
 ## DESCRIPTION
 
-```bash
+```
 usage: SONiCS [-h] [-o out_path] [-n FILE_NAME] [-c after_capture]
               [-r repetitions] [-p pvalue_threshold] [-s start_copies]
               [-f floor] [-a MIN MAX] [-e MIN MAX] [-d MIN MAX] [-u MIN MAX]
@@ -51,7 +51,7 @@ optional arguments:
                         exits it will add results to it, rather than
                         overwriting it.
   -n FILE_NAME, --file_name FILE_NAME
-                        Output file name. Default: sonics_out
+                        Output file name. Default: sonics_out.txt
   -c after_capture, --after_capture after_capture
                         How many cycles of PCR amplification were performed
                         after introducing capture step. [12]

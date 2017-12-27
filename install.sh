@@ -46,5 +46,12 @@ fi
 echo "Running test on support read out: 5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
 "$PATH_TO_PYTHON3" run_sonics.py --pvalue_threshold 0.001 --half_random -r 1000 12 "5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
 
-
-echo "Everythings seems to be working allright "
+if [ $? == 0 ]; then
+    echo "Everythings seems to be working allright "
+    echo "The output of the test is in sonics_out.txt"
+    rm -rf build
+else
+    echo "The installation did not work as expected. Please check the error"
+    echo "messages above to resolve installation issues. Please contact the" 
+    echo "author if you need further help. "
+fi
