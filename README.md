@@ -2,11 +2,11 @@
 
 ## SUMMARY
 
-SONiCS performs Monte Carlo simulation of the PCR of Short Tandem Repeats, calculates the likelihood of generating given support read out (reads per allele) out of the PCR pool and based on the log likelihood distributions determines the most probable genotype.
+SONiCS performs Monte Carlo simulations of the PCR of Short Tandem Repeats, calculates the likelihood of generating given support read out (reads per allele) out of the PCR pool and determines the most probable genotype based on the log likelihood distributions.
 
 ## REQUIREMENTS
 
-* Python 3.4 >=
+* Python version >= 3.4 
 * Cython
 * Python modules: logging, numpy, pandas, scipy, scikit-learn, pymc, argparse, shutil
 
@@ -15,7 +15,7 @@ SONiCS performs Monte Carlo simulation of the PCR of Short Tandem Repeats, calcu
 In order to configure the script run the install.sh script. If more than one python3 installed supply the path for the python version. Script will check for all dependencies and inform you if some are missing.
 
 ```bash
-bash ./install.sh [PATH_TO_PYTHON3]
+bash install.sh [PATH_TO_PYTHON3]
 ```
 
 ## RUNNING SONiCS
