@@ -79,7 +79,7 @@ def parse_vcf(file_path, strict=1):
     regexp_ref = re.compile(".*REF=([0-9.]*);.*")
     regexp_motif = re.compile(".*MOTIF=([TCGA]*);.*")
     with open(file_path, "r") as file:
-        for line in file.readlines():
+        for line in file:
             if line.startswith("#"):
                 if line.startswith("#CHROM"):
                     samples = line.strip("\n").split("\t")[9:]
