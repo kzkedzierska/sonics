@@ -13,7 +13,7 @@ usage()
 
    $PROGRAM [PATH_TO_PYTHON3]
    
-   Checks for requirements for SONiCS." 
+   Checks for requirements and compiles SONiCS. Performs small test to check if everything is working properly." 
 }
 
 PATH_TO_PYTHON3=$1
@@ -29,9 +29,9 @@ if [[ major -lt "3" || minor -lt "4" ]]; then
 fi
 
 #check for all the packages
-for package in $(echo "cython logging numpy pandas scipy sklearn pymc argparse shutil"); do
+for package in $(echo "cython numpy pandas scipy pymc"); do
 	if ! "$PATH_TO_PYTHON3" -c "import $package" &> /dev/null; then
-		missing_packages=$(echo ${missing_packages} $package | sed 's/sklearn/scikit-learn/g');
+		missing_packages=$(echo ${missing_packages} $package);
 	fi
 done
 
@@ -43,11 +43,11 @@ fi
 "$PATH_TO_PYTHON3" setup.py build_ext --inplace
 
 #run test 
-echo "Running test on support read out: 5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
-"$PATH_TO_PYTHON3" run_sonics.py --pvalue_threshold 0.001 --half_random -r 1000 12 "5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
+echo "Running test on support read out: 8|9;9|20;10|24;12|1"
+"$PATH_TO_PYTHON3" run_sonics.py --pvalue_threshold 0.001 --half_random -r 1000 12 "8|9;9|20;10|24;12|1"
 
 if [ $? == 0 ]; then
-    echo "Everythings seems to be working allright "
+    echo "Everything seems to be working all right."
     echo "The output of the test is in sonics_out.txt"
     rm -rf build
 else

@@ -11,8 +11,6 @@ import cython
 from itertools import repeat, chain
 import numpy as np
 import pandas as pd
-from sklearn.metrics import r2_score
-from scipy.special import binom
 from scipy.stats import multinomial, mannwhitneyu
 from pymc.distributions import multivariate_hypergeometric_like as mhl
 cimport numpy as np
@@ -175,6 +173,18 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None, block="", name
 
 
 # FUNCTIONS RUN EVERY SIMULATION
+def rsq(np.ndarray x, np.ndarray y):
+    """Calculates the coefficient of determination. 
+    """
+    a = np.array(sorted(x), dtype = int)
+    b = np.array(sorted(y), dtype = int)
+    x_ = a.mean()
+    ss_tot = sum([(i - x_)**2 for i in a])
+    ss_tot = 1e-16 if ss_tot == 0 else ss_tot
+    ss_res = sum([i**2 for i in a - b])
+    return 1 - ss_res / ss_tot
+
+
 def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=None, how_many_reps=100):
     """Calls PCR simulation function, based on PCR products generates genotype and calculates model statistics"""
     cdef int total_molecule, first, second, genotype_total, max_allele, 
@@ -260,7 +270,8 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
         # model statistics
         alleles_nonzero = alleles.nonzero()[0]
         identified = (sum([min(alleles[index], y[index]) for index in alleles_nonzero])) / genotype_total
-        r2 = r2_score(alleles, y)
+        #r2 = r2_score(alleles, y)
+        r2 = rsq(alleles, y)
     except Exception:
         loglike_a = -999999
         identified = 0
