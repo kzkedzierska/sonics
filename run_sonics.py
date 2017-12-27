@@ -1,5 +1,3 @@
-#!PYTHON_PATH_TO_FILL
-
 """SONiCS - Stutter mONte Carlo Simulation
 """
 desc = """Monte Carlo simulation of PCR based sequencing of Short Tandem Repeats 
@@ -27,7 +25,16 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_n
     else:
         intermediate = None
 
+    #output file path
+    op = os.path.join(out_path, file_name)
+
     if vcf_mode:
+        #delete output file if exists
+        try:
+            os.remove(op)
+        except OSError:
+            pass
+
         parser_out = parse_vcf(feed_in, strict)
         if type(parser_out) == str:
             raise Exception("There is something wrong with VCF file: {} record: {}".format(vcf_file, parser_out))
@@ -43,7 +50,6 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_n
                 result = sonics.monte_carlo(repetitions, constants, ranges, intermediate, block, name)
                 elapsed = time.time() - start
                 logging.info(result)
-                op = os.path.join(out_path, file_name)
                 with open(op, "a+") as of:
                     of.write("{}\t{}\t{}\n".format(name, block, result))
                 logging.debug("Monte Carlo simulation took: %f second(s)" %elapsed)
@@ -58,8 +64,7 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_n
         result = sonics.monte_carlo(repetitions, constants, ranges)
         elapsed = time.time() - start
         logging.info(result)
-        op = os.path.join(out_path, file_name)
-        with open(op, "a+") as of:
+        with open(op, "w+") as of:
             of.write("{}\t{}\t{}\n".format(name, block, result))
         logging.debug("Monte Carlo simulation took: %f second(s)" %elapsed)
 
@@ -135,8 +140,8 @@ def main():
         "-o", "--out_path",
         type=str,
         default=".",
-        help="Directory where output files will be stored. Warning: SONiCS appends results to a file, so if an output file exits it will add results to it, rather than overwriting it.",
-        metavar="out_path"
+        help="Directory where output files will be stored. Warning: if file with the given name exists, SONiCS will overwrite it. Default: ./",
+        metavar="OUT_PATH"
     )
     parser.add_argument(
         "-n", "--file_name",
@@ -150,16 +155,7 @@ def main():
         "-t", "--strict",
         metavar="N",
         default=0,
-        help="""Procedure when encountered partial repetitions of the motif while parsing the VCF file. Default: 1
-        * 0 pick on random one of the closest alleles
-        * 1 exclude given STR
-        * 2 exclude given genotype
-
-        Example: REF=11, MOTIF=GT, GT=0|54;1|27;2|914;4|15
-
-        * 0: 11|81;12|914;13|15 or 11|54;12|941;13|15
-        * 1: 11|54;12|914;13|15
-        * 2: exclude genotype from simulation pool
+        help="""Procedure when encountered partial repetitions of the motif while parsing the VCF file. Options: 0 - pick on random one of the closest alleles, 1 - exclude given STR, 2 -exclude given genotype. Default: 1
         """
     )
     parser.add_argument(
@@ -174,7 +170,7 @@ def main():
         default=1000,
         type=int,
         metavar="REPS",
-        help="Number of maximum repetitions in the simulations Default: 1000"
+        help="Number of maximum repetitions in the simulations. Default: 1000"
     )
     parser.add_argument(
         "-p", "--pvalue_threshold",
@@ -182,7 +178,7 @@ def main():
         metavar="PVALUE",
         type=float,
         default=0.01,
-        help="P-value threshold for selecting the allele Default: 0.01"
+        help="P-value threshold for selecting the allele. Default: 0.01"
     )
     parser.add_argument(
         "-s", "--start_copies",
@@ -196,10 +192,7 @@ def main():
         type=int,
         default=5,
         metavar="floor",
-        help="""Number that will be subtracted from the lowest number of STRs in the input genotype to set the threshold for the minimum number of STRs in a molecule for it to be included in the simulations.
-
-        Formula:
-            min_strs = max(1, min(alleles_in_input) - floor)"""
+        help="""Number that will be subtracted from the lowest number of STRs in the input genotype to set the threshold for the minimum number of STRs in a molecule for it to be included in the simulations. Default: 5"""
     )
     parser.add_argument(
         "-e", "--efficiency",
@@ -208,7 +201,7 @@ def main():
         default=(0.001, 0.1),
         metavar=('MIN', 'MAX'),
         type=float,
-        help="PCR efficiency before-after per cycle, i.e. probability of amplification [(0.001, 0.1)]"
+        help="PCR efficiency before-after per cycle, i.e. probability of amplification. Default: (0.001, 0.1)"
     )
     parser.add_argument(
         "-d", "--down",
@@ -217,7 +210,7 @@ def main():
         metavar=('MIN', 'MAX'),
         type=float,
         default=(0, 0.1),
-        help="Per unit probability of down-slippage - generating a molecule with less repeats (min and max). [(0, 0.1)]"
+        help="Per unit probability of down-slippage - generating a molecule with less repeats (min and max). Default: (0, 0.1)"
     )
     parser.add_argument(
         "-u", "--up",
@@ -226,7 +219,7 @@ def main():
         metavar=('MIN', 'MAX'),
         type=float,
         default=(0, 0.1),
-        help="Per unit probability of up-slippage - generating a molecule with more repeats (min and max). [(0, 0.1)]"
+        help="Per unit probability of up-slippage - generating a molecule with more repeats (min and max). Default: (0, 0.1)"
     )
     parser.add_argument(
         "-k", "--capture",
@@ -235,7 +228,7 @@ def main():
         default=(-0.25, 0.25),
         type=float,
         metavar=('MIN', 'MAX'),
-        help="Capture parameter (min and max). Values below zero favor capturing short alleles. [(-0.25, 0.25)]"
+        help="Capture parameter (min and max). Values below zero favor capturing short alleles. Default: (-0.25, 0.25)"
     )
     parser.add_argument(
         "-m", "--vcf_mode",
@@ -271,7 +264,7 @@ def main():
     parser.add_argument(
         '--version',
         action='version',
-        version='%(prog)s 0.0.1'
+        version='%(prog)s 0.0.2'
     )
 
     args = parser.parse_args()

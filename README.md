@@ -49,89 +49,101 @@ genotype1 1001    .       GTGTGTGTGTGTGTGTGTGT    GTGTGTGTGTGTGTGTGTGTGT  0     
 
 ### MODES
 
+#### Choosing starting alleles
 SONiCS can choose input alleles randomly, half randomly - one allele is always the one with the highest support, or the input alleles are always the top supported alleles. Those modes can be chosen by specifying **--random**, **--half_random** or neither, respectively. 
+
+#### Support for partial alleles
+* **-t, --strict N** - Procedure when encountered partial repetitions of the motif while parsing the VCF file. Options: 0 - pick on random one of the closest alleles, 1 - exclude given STR, 2 -exclude given genotype. Default: 1
+
+*Example:*
+REF=11, MOTIF=GT, GT=0|54;1|27;2|914;4|15
+* 0: 11|81;12|914;13|15 or 11|54;12|941;13|15
+* 1: 11|54;12|914;13|15
+* 2: exclude genotype from simulation pool
 
 ### PARAMETERS FOR SIMULATIONS
 
-* **-r, --repetitions** - maximum number of repetitions per genotype, default: 1000
+* **-r, --repetitions N** - maximum number of repetitions per genotype, default: 1000
 * **PCR_CYCLES** - **required** parameter, number of PCR cycles before introducing the capture step
-* **-c, --after_capture** - number of PCR cycles after the introduction of the capture step; default: 12
-* **-p, --pvalue_threshold** - threshold for Bonferroni corrected p-value of Mann Whitney test of the likelihood distributions; default: 0.01 
+* **-c, --after_capture N** - number of PCR cycles after the introduction of the capture step; default: 12
+* **-p, --pvalue_threshold N** - threshold for Bonferroni corrected p-value of Mann Whitney test of the likelihood distributions; default: 0.01 
 
 ### PARAMETERS SPECIFIC FOR PCR
 
 Parameters are chosen on random from the given open interval before each simulation. 
 
-* **-e, --efficiency** - PCR efficiency default: (0.001, 0.1)
-* **-d, --down** - probability of slippage down - synthesizing molecule with less repeats; default: (0, 0.1)
-* **-u, --up** - probability of slippage up - synthesizing molecule with more repeats; default: (0, 0.1)
-* **-k, --capture** - parameter describing efficiency of the capture step. Values below zero favor capturing shorter molecules; default: (-0.25, 0.25)
+* **-e, --efficiency N N** - PCR efficiency default: (0.001, 0.1)
+* **-d, --down N N** - probability of slippage down - synthesizing molecule with less repeats; default: (0, 0.1)
+* **-u, --up N N** - probability of slippage up - synthesizing molecule with more repeats; default: (0, 0.1)
+* **-k, --capture N N** - parameter describing efficiency of the capture step. Values below zero favor capturing shorter molecules; default: (-0.25, 0.25)
 * **--up_preference** - up-stutter doesn't have to be more probable than down-stutter; default slippage_down > slippage_up
+* **-f, --floor N** - number that will be subtracted from the lowest number of STRs in the input genotype to set the threshold for the minimum number of STRs in a molecule for it to be included in the simulations. Default: 5
+
+*Formula:**
+min_strs = max(1, min(alleles_in_input) - floor)
+
+ 
 
 ### ALL OPTIONS
 
-```bash
-usage: SONiCS [-h] [-o OUT_PATH] [-n FILE_NAME] [-t N] [-c CYCLES] [-r REPS]
-              [-p PVALUE] [-s START_COPIES] [-f floor] [-a MIN MAX]
-              [-e MIN MAX] [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [-m] [-i]
-              [-x] [-y] [-z] [-v] [--version]
+```
+usage: SONiCS [-h] [-o OUT_PATH] [-n FILE_NAME] [-t N] [-c after_capture]
+              [-r REPS] [-p PVALUE] [-s START_COPIES] [-f floor] [-e MIN MAX]
+              [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [-m] [-i] [-x] [-y] [-z]
+              [-v] [--version]
               PCR_CYCLES INPUT
 
 Monte Carlo simulation of PCR based sequencing of Short Tandem Repeats with
 one or two alleles as a starting condition.
 
 positional arguments:
-  PCR_CYCLES            Number of PCR cycles before the introduction of
-                        capture step.
+  PCR_CYCLES            Number of PCR cycles before introducing capture step.
   INPUT                 Either: allele composition - number of reads per
                         allele, example: allele1|reads;allele2|reads or path
-                        to VCF file if run with --vcf_mode option
+                        to a VCF file if run with --vcf_mode option
 
 optional arguments:
   -h, --help            show this help message and exit
   -o OUT_PATH, --out_path OUT_PATH
                         Directory where output files will be stored. Warning:
-                        SONiCS appends results to a file, so if an output file
-                        exits it will add results to it rather than
-                        overwriting it. [./]
+                        if file with the given name exists, SONiCS will
+                        overwrite it. Default: ./
   -n FILE_NAME, --file_name FILE_NAME
-                        Output file name. [sonics_out]
+                        Output file name. Default: sonics_out.txt
   -t N, --strict N      Procedure when encountered partial repetitions of the
-                        motif while parsing the VCF file. [1] * 0 pick on
-                        random one of the closest alleles * 1 exclude given
-                        STR * 2 exclude given genotype Example: REF=11,
-                        MOTIF=GT, GT=0|54;1|27;2|914;4|15 * 0:
-                        11|81;12|914;13|15 or 11|54;12|941;13|15 * 1:
-                        11|54;12|914;13|15 * 2: exclude genotype from
-                        simulation pool
-  -c CYCLES, --after_capture CYCLES
+                        motif while parsing the VCF file. Options: 0 - pick on
+                        random one of the closest alleles, 1 - exclude given
+                        STR, 2 -exclude given genotype. Default: 1
+  -c after_capture, --after_capture after_capture
                         How many cycles of PCR amplification were performed
-                        after introducing capture step. [12]
+                        after introducing capture step. Default: 12
   -r REPS, --repetitions REPS
-                        Number of maximum repetitions in the simulations
-                        [1000]
+                        Number of maximum repetitions in the simulations.
+                        Default: 1000
   -p PVALUE, --pvalue_threshold PVALUE
-                        P-value threshold for selecting the allele [0.01]
+                        P-value threshold for selecting the allele. Default:
+                        0.01
   -s START_COPIES, --start_copies START_COPIES
-                        Number of start copies. [3e5]
+                        Number of start copies. Default: 3e5
   -f floor, --floor floor
                         Number that will be subtracted from the lowest number
                         of STRs in the input genotype to set the threshold for
                         the minimum number of STRs in a molecule for it to be
-                        included in the simulations. Formula: min_strs =
-                        max(1, min(alleles_in_input) - floor)
+                        included in the simulations. Default: 5
   -e MIN MAX, --efficiency MIN MAX
                         PCR efficiency before-after per cycle, i.e.
-                        probability of amplification [0.001 0.1]
+                        probability of amplification. Default: (0.001, 0.1)
   -d MIN MAX, --down MIN MAX
                         Per unit probability of down-slippage - generating a
-                        molecule with less repeats (min and max). [0 0.1]
+                        molecule with less repeats (min and max). Default: (0,
+                        0.1)
   -u MIN MAX, --up MIN MAX
                         Per unit probability of up-slippage - generating a
-                        molecule with more repeats (min and max). [0 0.1]
+                        molecule with more repeats (min and max). Default: (0,
+                        0.1)
   -k MIN MAX, --capture MIN MAX
                         Capture parameter (min and max). Values below zero
-                        favor capturing short alleles. [-0.25]
+                        favor capturing short alleles. Default: (-0.25, 0.25)
   -m, --vcf_mode        VCF file provided. Assuming that different samples, if
                         more than one is present, are put in the consecutive
                         columns, starting with 10th.
@@ -151,4 +163,5 @@ optional arguments:
                         probability of up-stutter]
   -v, --verbose         Verbose mode.
   --version             show program's version number and exit
+
 ```

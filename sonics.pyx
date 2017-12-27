@@ -1,5 +1,3 @@
-#!PYTHON_PATH_TO_FILL
-
 ### based on Perl script stutterSim.pl
 
 __author__ = "Katarzyna Kedzierska"
