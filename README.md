@@ -51,7 +51,7 @@ optional arguments:
                         exits it will add results to it, rather than
                         overwriting it.
   -n FILE_NAME, --file_name FILE_NAME
-                        Output file name. Default: sonics_out
+                        Output file name. Default: sonics_out.txt
   -c after_capture, --after_capture after_capture
                         How many cycles of PCR amplification were performed
                         after introducing capture step. [12]
