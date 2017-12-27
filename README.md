@@ -12,7 +12,7 @@ SONiCS performs Monte Carlo simulations of the PCR of Short Tandem Repeats, calc
 
 ## INSTALLATION
 
-In order to configure the script run the install.sh script. If more than one python3 installed supply the path for the python version. Script will check for all dependencies and inform you if some are missing.
+In order to configure the script run the install.sh script. If more than one python3 installed supply the path for the python version. Script will check for all dependencies and inform you if some are missing. After installation it will run a simple test and report on whether everything is working as expected.
 
 ```bash
 bash install.sh [PATH_TO_PYTHON3]
