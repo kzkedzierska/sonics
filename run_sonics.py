@@ -140,7 +140,7 @@ def main():
         "-o", "--out_path",
         type=str,
         default=".",
-        help="Directory where output files will be stored. Warning: if file with the given name exists, SONiCS will overwrite it. Default: ./",
+        help="Directory where output files will be stored. Warning: if file with the given name exists, SONiCS will overwrite it. Default: .",
         metavar="OUT_PATH"
     )
     parser.add_argument(
@@ -153,9 +153,8 @@ def main():
     parser.add_argument(
         "-t", "--strict",
         metavar="N",
-        default=0,
-        help="""Procedure when encountered partial repetitions of the motif while parsing the VCF file. Options: 0 - pick on random one of the closest alleles, 1 - exclude given STR, 2 -exclude given genotype. Default: 1
-        """
+        default=1,
+        help="""Procedure when encountered partial repetitions of the motif while parsing the VCF file. Options: 0 - pick on random one of the closest alleles, 1 - exclude given STR, 2 -exclude given genotype. Default: 1"""
     )
     parser.add_argument(
         "-c", "--after_capture",
@@ -233,27 +232,27 @@ def main():
         "-m", "--vcf_mode",
         action='store_true',
         default=False,
-        help="VCF file provided. Assuming that different samples, if more than one is present, are put in the consecutive columns, starting with 10th."
+        help="VCF file provided. Assuming that different samples, if more than one is present, are put in the consecutive columns, starting with 10th. Default: string mode."
     )
     parser.add_argument(
         "-i", "--save_intermediate",
         default=False,
         action="store_true",
-        help="Save intermediate PCR pools when run in vcf mode to save up time on simulating same initial conditions. [not saing intermediate results and simulating PCR for each run from scratch]")
+        help="Save intermediate PCR pools when run in vcf mode to save up time on simulating same initial conditions. Default: not saing intermediate results and simulating PCR for each run from scratch")
     parser.add_argument(
         "-x", "--random",
-        help="Randomly select alleles for simulations. [Select both alleles based on the support information from the input genotype]",
+        help="Randomly select alleles for simulations from the input. Default: selects both alleles based on the support information from the input.",
         action='store_true'
     )
     parser.add_argument(
         "-y", "--half_random",
         action='store_true',
-        help="Randomly select only the second allele, the first is the most supported one. [Select both alleles based on the support information from the input genotype]"
+        help="Randomly select only the second allele, the first is the most supported one. Default: selects both alleles based on the support information from the input."
     )
     parser.add_argument(
         "-z", "--up_preference",
         action='store_true',
-        help="Up-stutter doesn't have to be less probable than down stutter. [probability of down-stutter higher than the probability of up-stutter]"
+        help="Up-stutter doesn't have to be less probable than down stutter. Default: probability of down-stutter higher than the probability of up-stutter."
     )
     parser.add_argument(
         "-v", "--verbose",

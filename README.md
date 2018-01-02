@@ -107,7 +107,7 @@ optional arguments:
   -o OUT_PATH, --out_path OUT_PATH
                         Directory where output files will be stored. Warning:
                         if file with the given name exists, SONiCS will
-                        overwrite it. Default: ./
+                        overwrite it. Default: .
   -n FILE_NAME, --file_name FILE_NAME
                         Output file name. Default: sonics_out.txt
   -t N, --strict N      Procedure when encountered partial repetitions of the
@@ -146,22 +146,21 @@ optional arguments:
                         favor capturing short alleles. Default: (-0.25, 0.25)
   -m, --vcf_mode        VCF file provided. Assuming that different samples, if
                         more than one is present, are put in the consecutive
-                        columns, starting with 10th.
+                        columns, starting with 10th. Default: string mode.
   -i, --save_intermediate
                         Save intermediate PCR pools when run in vcf mode to
                         save up time on simulating same initial conditions.
-                        [not saing intermediate results and simulating PCR for
-                        each run from scratch]
-  -x, --random          Randomly select alleles for simulations. [Select both
-                        alleles based on the support information from the
-                        input genotype]
+                        Default: not saing intermediate results and simulating
+                        PCR for each run from scratch
+  -x, --random          Randomly select alleles for simulations from the
+                        input. Default: selects both alleles based on the
+                        support information from the input.
   -y, --half_random     Randomly select only the second allele, the first is
-                        the most supported one. [Select both alleles based on
-                        the support information from the input genotype]
+                        the most supported one. Default: selects both alleles
+                        based on the support information from the input.
   -z, --up_preference   Up-stutter doesn't have to be less probable than down
-                        stutter. [probability of down-stutter higher than the
-                        probability of up-stutter]
+                        stutter. Default: probability of down-stutter higher
+                        than the probability of up-stutter.
   -v, --verbose         Verbose mode.
   --version             show program's version number and exit
-
 ```

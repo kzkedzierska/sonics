@@ -1,4 +1,4 @@
-### based on Perl script stutterSim.pl
+### based on Perl script stutterSim.pl by Logan Kistler
 
 __author__ = "Katarzyna Kedzierska"
 __email__ = "kzk5f@virginia.edu"
