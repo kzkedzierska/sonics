@@ -190,8 +190,8 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
     cdef int total_molecule, first, second, genotype_total, max_allele, 
     cdef dict parameters
     cdef str initial
-    cdef float identified, r2, prob_a
-    cdef np.ndarray[DTYPE_t, ndim=1] alleles, alleles_nonzero
+    cdef float identified, r2, prob_a, noise_coef
+    cdef np.ndarray[DTYPE_t, ndim=1] alleles, alleles_nonzero, noise
     genotype_total = constants['genotype_total']
     max_allele = constants['max_allele']
     PCR_products = np.zeros(constants['max_allele'], dtype=DTYPE)
@@ -228,7 +228,14 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
         PCR_products[second] = constants['start_copies'] / 2
         #logging.debug("Starting PCR with alleles: %d, %d" %(first, second))
         initial = "{}/{}".format(first, second) if first < second else "{}/{}".format(second, first)
-    PCR_products += np.array(alleles / sum(alleles) * sum(PCR_products), dtype=int)
+
+    #add noise if minimal support of one of the alleles drops below 5% of all support 
+    noise_coef = min(alleles[alleles > 0]) / sum(alleles)
+    if noise_coef < 0.05:
+        noise = np.copy(alleles)
+        noise[noise > 0] = noise_coef * sum(PCR_products)
+        PCR_products += noise
+
     if intermediate != None:
         dir_path = os.path.join(intermediate, "_".join(initial.split("/")))
         try:
@@ -277,7 +284,7 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
         identified = 0
         r2 = 0
     
-    report = [identified, r2, loglike_a, initial]
+    report = [identified, r2, loglike_a, initial, noise_coef]
     #logging.debug("\t".join([str(h) for h in report]))
     return(report)
 
