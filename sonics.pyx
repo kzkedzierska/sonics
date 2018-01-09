@@ -28,7 +28,7 @@ def get_alleles(genot_input):
         if f != "":
             pair = f.split("|")
             alleles[int(pair[0])] = int(pair[1])
-    alleles[alleles < max(alleles) * 0.01] = 0
+    #alleles[alleles < max(alleles) * 0.01] = 0
     if len(alleles.nonzero()[0]) < 2:
         alleles = np.zeros(max_allele, dtype=DTYPE)
 
@@ -225,7 +225,7 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
         PCR_products[second] = constants['start_copies'] / 2
         #logging.debug("Starting PCR with alleles: %d, %d" %(first, second))
         initial = "{}/{}".format(first, second) if first < second else "{}/{}".format(second, first)
-
+    PCR_products += np.array(alleles / sum(alleles) * sum(PCR_products), dtype=int)
     if intermediate != None:
         dir_path = os.path.join(intermediate, "_".join(initial.split("/")))
         try:
@@ -275,7 +275,7 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
         r2 = 0
     
     report = [identified, r2, loglike_a, initial]
-    #logging.debug("\t".join([str(h) for h in report]))
+    logging.debug("\t".join([str(h) for h in report]))
     return(report)
 
 
