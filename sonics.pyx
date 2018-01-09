@@ -80,7 +80,7 @@ def cycle_allele(entry, params, floor):
         #logging.debug(res)
         return res
 
-def monte_carlo(max_n_reps, constants, ranges, intermediate=None, block="", name=""):
+def monte_carlo(max_n_reps, constants, ranges, intermediate=None, block="", name="", verbose=False):
     """Runs Monte Carlo simulation of the PCR amplification until p_value threshold for the Mann Whitney test is reached or the the number of repetition reaches the maximum.
 
     Scheme:
@@ -152,6 +152,9 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None, block="", name
         # make sure that the number of reps does not exceed the maximum number of reps
         reps = reps if reps + run_reps < max_n_reps else max_n_reps - run_reps
         reps_round+=1
+
+    if verbose:
+        results_pd.to_csv("{}_{}.txt".format(block, name), sep = "\t", header = False, index = False)
 
     if successful:
         best_guess = results_pd[results_pd[2] > -999999].groupby(3).get_group(highest_loglike).sort_values(0, ascending=False).head(n=1)
@@ -275,7 +278,7 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
         r2 = 0
     
     report = [identified, r2, loglike_a, initial]
-    logging.debug("\t".join([str(h) for h in report]))
+    #logging.debug("\t".join([str(h) for h in report]))
     return(report)
 
 

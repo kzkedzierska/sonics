@@ -12,7 +12,7 @@ import sonics
 import shutil
 import numpy as np
 
-def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_name="sonics_out", vcf_mode=False, save_intermediate=False, name="sample", block="Block"):
+def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_name="sonics_out", vcf_mode=False, save_intermediate=False, name="sample", block="Block", verbose = False):
     """
     save_intermediate => create tmp directory with files for each starting conditions. Each file would have one PCR pool per line. 
     """
@@ -47,7 +47,7 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_n
                     continue
                 logging.info("Initiating simulation for {} {}".format(name, block))
                 start = time.time()
-                result = sonics.monte_carlo(repetitions, constants, ranges, intermediate, block, name)
+                result = sonics.monte_carlo(repetitions, constants, ranges, intermediate, block, name, verbose = verbose)
                 elapsed = time.time() - start
                 logging.info(result)
                 with open(op, "a+") as of:
@@ -61,7 +61,7 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_n
             raise Exception("Less than 2 alleles provided in input, skipping this genotype: {} for the sample: {}.".format(genotype, name))
         logging.info("Initiating simulation")
         start = time.time()
-        result = sonics.monte_carlo(repetitions, constants, ranges)
+        result = sonics.monte_carlo(repetitions, constants, ranges, block = block, name = name, verbose = verbose)
         elapsed = time.time() - start
         logging.info(result)
         with open(op, "w+") as of:
@@ -160,8 +160,22 @@ def main():
         "-c", "--after_capture",
         type=int,
         default=12,
-        metavar="after_capture",
+        metavar="AFTER_CAPTURE",
         help="How many cycles of PCR amplification were performed after introducing capture step. Default: 12"
+    )
+    parser.add_argument(
+        "-b", "--block",
+        type=str,
+        default="Block",
+        metavar="BLOCK",
+        help="Block name, valid only with string genotype as input. Default: Block"
+    )
+    parser.add_argument(
+        "-a", "--name",
+        type=str,
+        default="sample",
+        metavar="NAME",
+        help="Sample name, valid only with string genotype as input. Default: sample"
     )
     parser.add_argument(
         "-r", "--repetitions",
@@ -304,6 +318,7 @@ def main():
         args.capture,
         args.efficiency
     )
+    verb = True if args.verbose else False
 
     run_sonics(
         feed_in = args.INPUT, 
@@ -314,7 +329,10 @@ def main():
         out_path = args.out_path, 
         file_name = args.file_name, 
         vcf_mode = args.vcf_mode, 
-        save_intermediate = args.save_intermediate
+        save_intermediate = args.save_intermediate,
+        name = args.name,
+        block = args.block,
+        verbose = verb
     )
 
     if args.save_intermediate:
