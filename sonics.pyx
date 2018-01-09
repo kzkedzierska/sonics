@@ -28,7 +28,7 @@ def get_alleles(genot_input):
         if f != "":
             pair = f.split("|")
             alleles[int(pair[0])] = int(pair[1])
-    alleles[alleles < max(alleles) * 0.01] = 0
+    #alleles[alleles < max(alleles) * 0.01] = 0
     if len(alleles.nonzero()[0]) < 2:
         alleles = np.zeros(max_allele, dtype=DTYPE)
 
@@ -80,7 +80,7 @@ def cycle_allele(entry, params, floor):
         #logging.debug(res)
         return res
 
-def monte_carlo(max_n_reps, constants, ranges, intermediate=None, block="", name=""):
+def monte_carlo(max_n_reps, constants, ranges, intermediate=None, block="", name="", verbose=False):
     """Runs Monte Carlo simulation of the PCR amplification until p_value threshold for the Mann Whitney test is reached or the the number of repetition reaches the maximum.
 
     Scheme:
@@ -152,6 +152,9 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None, block="", name
         # make sure that the number of reps does not exceed the maximum number of reps
         reps = reps if reps + run_reps < max_n_reps else max_n_reps - run_reps
         reps_round+=1
+
+    if verbose:
+        results_pd.to_csv("{}_{}.txt".format(block, name), sep = "\t", header = False, index = False)
 
     if successful:
         best_guess = results_pd[results_pd[2] > -999999].groupby(3).get_group(highest_loglike).sort_values(0, ascending=False).head(n=1)
@@ -225,7 +228,7 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
         PCR_products[second] = constants['start_copies'] / 2
         #logging.debug("Starting PCR with alleles: %d, %d" %(first, second))
         initial = "{}/{}".format(first, second) if first < second else "{}/{}".format(second, first)
-
+    #PCR_products += np.array(alleles / sum(alleles) * sum(PCR_products), dtype=int)
     if intermediate != None:
         dir_path = os.path.join(intermediate, "_".join(initial.split("/")))
         try:
