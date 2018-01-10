@@ -1,6 +1,6 @@
 """SONiCS - Stutter mONte Carlo Simulation
 """
-desc = """Monte Carlo simulation of PCR based sequencing of Short Tandem Repeats 
+desc = """Monte Carlo simulation of PCR based sequencing of Short Tandem Repeats
 with one or two alleles as a starting condition.
 """
 import re
@@ -12,9 +12,11 @@ import sonics
 import shutil
 import numpy as np
 
-def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_name="sonics_out", vcf_mode=False, save_intermediate=False, name="sample", block="Block", verbose = False):
+def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path, file_name="sonics_out",
+    vcf_mode=False, save_intermediate=False, name="sample", block="Block", verbose=False):
     """
-    save_intermediate => create tmp directory with files for each starting conditions. Each file would have one PCR pool per line. 
+    save_intermediate => create tmp directory with files for each starting conditions. 
+    Each file would have one PCR pool per line. 
     """
     if save_intermediate:
         intermediate = os.path.join(out_path, "tmp")
@@ -117,6 +119,8 @@ def parse_vcf(file_path, strict=1):
                 n+=1
     return genotypes_list
 
+#TODO: Rewrite help.
+
 def main():
     parser = argparse.ArgumentParser(
         prog="SONiCS",
@@ -154,7 +158,9 @@ def main():
         "-t", "--strict",
         metavar="N",
         default=1,
-        help="""Procedure when encountered partial repetitions of the motif while parsing the VCF file. Options: 0 - pick on random one of the closest alleles, 1 - exclude given STR, 2 -exclude given genotype. Default: 1"""
+        help="""Procedure when encountered partial repetitions of the motif while parsing the VCF 
+        file. Options: 0 - pick on random one of the closest alleles, 1 - exclude given STR, 
+        2 -exclude given genotype. Default: 1"""
     )
     parser.add_argument(
         "-c", "--after_capture",
@@ -198,6 +204,13 @@ def main():
         type=int,
         metavar="START_COPIES",
         help="Number of start copies. Default: 3e5"
+    )
+    parser.add_argument(
+        "-l", "--noise_coef", #noise ~ loud 
+        default=0.05,
+        type=float,
+        metavar="NOSIE_COEF",
+        help="What fraction of the staring pool should noise comprise. Default: 0.05" #the worst sentence ever written in English
     )
     parser.add_argument(
         "-f", "--floor",
@@ -309,7 +322,8 @@ def main():
         'floor': args.floor,
         'start_copies': args.start_copies,
         'genotype': args.INPUT,
-        'pvalue_threshold': args.pvalue_threshold
+        'pvalue_threshold': args.pvalue_threshold,
+        'noise_coef': args.noise_coef
     }
 
     ranges = (

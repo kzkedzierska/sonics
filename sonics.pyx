@@ -108,15 +108,22 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None, block="", name
             repeat(intermediate),
             repeat(reps)
         )))
+
+        #even out the comparisons between homozygous and each of the heterozygous genotypes
+        #group by genotype
+        results_pd_tmp = pd.DataFrame.from_records(results).groupby(3)
+        #get the median of number of simulations per each genotype
+        homo_reps = int(results_pd_tmp.size().median())
         #logging.debug("Starting one allele simulation, number of reps: {}".format(reps))
         results.extend(list(map(
             one_repeat,
-            repeat("one_allele", reps),
+            repeat("one_allele", homo_reps),
             repeat(constants),
             repeat(ranges),
             repeat(intermediate),
             repeat(reps)
         )))
+
         run_reps+=reps
 
         results_pd = pd.DataFrame.from_records(results)
@@ -190,7 +197,7 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
     cdef int total_molecule, first, second, genotype_total, max_allele, 
     cdef dict parameters
     cdef str initial
-    cdef float identified, r2, prob_a, noise_coef
+    cdef float identified, r2, prob_a, noise_coef, frac
     cdef np.ndarray[DTYPE_t, ndim=1] alleles, alleles_nonzero, noise
     genotype_total = constants['genotype_total']
     max_allele = constants['max_allele']
@@ -229,32 +236,35 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
         #logging.debug("Starting PCR with alleles: %d, %d" %(first, second))
         initial = "{}/{}".format(first, second) if first < second else "{}/{}".format(second, first)
 
-    #add noise if minimal support of one of the alleles drops below 5% of all support 
-    noise_coef = min(alleles[alleles > 0]) / sum(alleles)
-    if noise_coef < 0.05:
+    #add noise if it will consist less than noise_coef fraction of the initial pool
+    frac = min(alleles.nonzero()) / sum(alleles) * alleles.nonzero().size
+    noise_coef = frac / (frac + 1)
+    if noise_coef < constants['noise_coef']:
         noise = np.copy(alleles)
         noise[noise > 0] = noise_coef * sum(PCR_products)
         PCR_products += noise
 
-    if intermediate != None:
-        dir_path = os.path.join(intermediate, "_".join(initial.split("/")))
-        try:
-            os.stat(dir_path)
-        except:
-            os.mkdir(dir_path)  
-        
-        saved_pools = os.listdir(dir_path)
-        if len(saved_pools) > how_many_reps:
-            to_load = np.random.choice(saved_pools)
-            PCR_products = np.load(os.path.join(dir_path, to_load))
+    else:
+        if intermediate != None:
+            #TODO: check if range ok => if starting conditions of the pool included the alleles from present input
+            dir_path = os.path.join(intermediate, "_".join(initial.split("/")))
+            try:
+                os.stat(dir_path)
+            except:
+                os.mkdir(dir_path)  
+            
+            saved_pools = os.listdir(dir_path)
+            if len(saved_pools) > how_many_reps:
+                to_load = np.random.choice(saved_pools)
+                PCR_products = np.load(os.path.join(dir_path, to_load))
+            else:
+                to_save = str(max([int(f.strip(".npy")) for f in saved_pools]) + 1) if len(saved_pools) > 0 else '1'
+                # PCR simulation
+                PCR_products = simulate(PCR_products, constants, parameters)
+                np.save(os.path.join(dir_path, to_save) , PCR_products)
         else:
-            to_save = str(max([int(f.strip(".npy")) for f in saved_pools]) + 1) if len(saved_pools) > 0 else '1'
             # PCR simulation
             PCR_products = simulate(PCR_products, constants, parameters)
-            np.save(os.path.join(dir_path, to_save) , PCR_products)
-    else:
-        # PCR simulation
-        PCR_products = simulate(PCR_products, constants, parameters)
 
     PCR_total_molecules = np.sum(PCR_products)
 
