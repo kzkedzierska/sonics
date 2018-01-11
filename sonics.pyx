@@ -124,7 +124,7 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None, block="", name
             repeat(reps)
         )))
 
-        run_reps+=reps
+        run_reps += reps
 
         results_pd = pd.DataFrame.from_records(results)
         # get the allele for which the median log likelihood is the highest 
@@ -197,9 +197,11 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
     cdef int total_molecule, first, second, genotype_total, max_allele, 
     cdef dict parameters
     cdef str initial
-    cdef float identified, r2, prob_a, noise_coef, frac
+    cdef float identified, r2, prob_a, noise_coef, noise_threshold
     cdef np.ndarray[DTYPE_t, ndim=1] alleles, alleles_nonzero, noise
     genotype_total = constants['genotype_total']
+    noise_coef = constants['noise_coef']
+    noise_threshold = constants['noise_threshold']
     max_allele = constants['max_allele']
     PCR_products = np.zeros(constants['max_allele'], dtype=DTYPE)
     parameters = generate_params(ranges, constants['up_preference'])
@@ -236,10 +238,7 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
         #logging.debug("Starting PCR with alleles: %d, %d" %(first, second))
         initial = "{}/{}".format(first, second) if first < second else "{}/{}".format(second, first)
 
-    #add noise if it will consist less than noise_coef fraction of the initial pool
-    frac = min(alleles.nonzero()) / sum(alleles) * alleles.nonzero().size
-    noise_coef = frac / (frac + 1)
-    if noise_coef < constants['noise_coef']:
+    if noise_coef < noise_threshold:
         noise = np.copy(alleles)
         noise[noise > 0] = noise_coef * sum(PCR_products)
         PCR_products += noise
