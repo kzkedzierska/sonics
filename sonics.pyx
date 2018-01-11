@@ -224,10 +224,10 @@ def one_repeat(str simulation_type, dict constants, tuple ranges, intermediate=N
             second = np.random.choice([first-1, first+1])
         else:
             if constants['random']:
-                first, second = tuple(np.random.choice(alleles.nonzero()), 2)
+                first, second = tuple(np.random.choice(alleles.nonzero()[0], 2))
             elif constants['half_random']:
                 first = np.argsort(-alleles)[0]
-                second = np.random.choice(np.nonzero(alleles)[0][np.nonzero(alleles)[0] != first])
+                second = np.random.choice(alleles.nonzero()[0][alleles.nonzero()[0] != first])
             else:
                 # if not random, simulate PCR for the alleles with max reads in the genotype
                 #logging.debug(np.argsort(-alleles)[1])
