@@ -19,11 +19,16 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path,
     save_intermediate => create tmp directory with files for each starting
     conditions. Each file would have one PCR pool per line.
     """
+    try:
+        os.stat(out_path)
+    except FileNotFoundError:
+        os.mkdir(out_path)  
+
     if save_intermediate:
         intermediate = os.path.join(out_path, "tmp")
         try:
             os.stat(intermediate)
-        except:
+        except FileNotFoundError:
             os.mkdir(intermediate)
     else:
         intermediate = None
@@ -80,6 +85,11 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path,
     else:
         genotype = feed_in
         alleles, constants['max_allele'] = sonics.get_alleles(genotype)
+        constants['genotype_total'] = sum(alleles)
+        if constants['genotype_total'] == 0:
+            logging.error(("Less than 2 alleles provided in the input,"
+                            "%s sample: %s."), block, name)
+            return
 
         frac = (np.amin(alleles[alleles.nonzero()])
                 / sum(alleles)
@@ -88,7 +98,6 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path,
         noise_coef = frac / (frac + 1)
         constants['alleles'] = alleles
         constants['noise_coef'] = noise_coef
-        constants['genotype_total'] = sum(alleles)
 
         if constants['genotype_total'] == 0:
             raise Exception((
