@@ -81,14 +81,17 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None,
     reps = 100 if max_n_reps > 100 else max_n_reps
     while run_reps < max_n_reps:
 
-        results.extend(list(map(
-            one_repeat,
-            repeat("two_alleles", reps),
-            repeat(constants),
-            repeat(ranges),
-            repeat(intermediate),
-            repeat(reps)
-        )))
+        current_rep = 1
+        while current_rep < reps:
+            one_result = one_repeat(
+                "two_alleles",
+                constants,
+                ranges,
+                intermediate,
+                reps
+            )
+            results.append(one_result)
+            current_rep += 1
 
         """even out the comparisons between homozygous and each
         of the heterozygous genotypes group by genotype"""
@@ -96,14 +99,43 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None,
         #get the median of number of simulations per each genotype
         homo_reps = int(results_pd_tmp.size().median())
 
-        results.extend(list(map(
-            one_repeat,
-            repeat("one_allele", homo_reps),
-            repeat(constants),
-            repeat(ranges),
-            repeat(intermediate),
-            repeat(reps)
-        )))
+        current_rep = 1
+        while current_rep < homo_reps:
+            one_result = one_repeat(
+                "one_allele",
+                constants,
+                ranges,
+                intermediate,
+                reps
+            )
+            results.append(one_result)
+            current_rep += 1
+
+
+
+        # results.extend(list(map(
+        #     one_repeat,
+        #     repeat("two_alleles", reps),
+        #     repeat(constants),
+        #     repeat(ranges),
+        #     repeat(intermediate),
+        #     repeat(reps)
+        # )))
+
+        # """even out the comparisons between homozygous and each
+        # of the heterozygous genotypes group by genotype"""
+        # results_pd_tmp = pd.DataFrame.from_records(results).groupby(3)
+        # #get the median of number of simulations per each genotype
+        # homo_reps = int(results_pd_tmp.size().median())
+
+        # results.extend(list(map(
+        #     one_repeat,
+        #     repeat("one_allele", homo_reps),
+        #     repeat(constants),
+        #     repeat(ranges),
+        #     repeat(intermediate),
+        #     repeat(reps)
+        # )))
 
         run_reps += reps
 
@@ -167,17 +199,15 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None,
 
 
 # FUNCTIONS RUN EVERY SIMULATION
-def rsq(np.ndarray x, np.ndarray y):
-    """Calculates the coefficient of determination.
+def rsq(np.ndarray true_values, np.ndarray pred_values):
+    """Calculates the coefficient of determination between the truth (x) and
+    prediction (y).
     """
-    a = np.array(sorted(x), dtype=int)
-    b = np.array(sorted(y), dtype=int)
-    x_ = a.mean()
-    ss_tot = sum([(i - x_)**2 for i in a])
+    true_mean = true_values.mean()
+    ss_tot = sum([(i - true_mean) ** 2 for i in true_values])
     ss_tot = 1e-16 if ss_tot == 0 else ss_tot
-    ss_res = sum([i**2 for i in a - b])
+    ss_res = sum([i ** 2 for i in true_values - pred_values])
     return 1 - ss_res / ss_tot
-
 
 def one_repeat(str simulation_type, dict constants, tuple ranges,
                intermediate=None, how_many_reps=100):
@@ -259,17 +289,28 @@ def one_repeat(str simulation_type, dict constants, tuple ranges,
 
     PCR_total_molecules = np.sum(PCR_products)
 
-    # genotype generation
-    mid = map(
-        lambda al: list(repeat(
-            al,
-            np.random.binomial(genotype_total, PCR_products[al] / PCR_total_molecules)
-        )),
-        range(max_allele)
-    )
+    #genotype generation
+    mid = []
+    for allele in range(max_allele):
+        n_times = np.random.binomial(genotype_total, PCR_products[allele] / PCR_total_molecules)
+        allele_molecules = list(repeat(allele, n_times))
+        mid.extend(allele_molecules)
 
-    mid = list(chain.from_iterable(mid))
-    loglike_a = mhl(alleles, PCR_products) if sum(PCR_products < alleles) == 0 else -999999
+
+    # mid = map(
+    #     lambda al: list(repeat(
+    #         al,
+    #         np.random.binomial(genotype_total, PCR_products[al] / PCR_total_molecules)
+    #     )),
+    #     range(max_allele)
+    # )
+
+    #mid = list(chain.from_iterable(mid))
+
+    try:
+        loglike_a = mhl(alleles, PCR_products) 
+    except:
+        loglike_a = -999999
 
     # pick from PCR pool genotype
     try:
@@ -281,7 +322,7 @@ def one_repeat(str simulation_type, dict constants, tuple ranges,
         alleles_nonzero = alleles.nonzero()[0]
         identified = (sum([min(alleles[index], readout[index]) for index in alleles_nonzero])) / genotype_total
         r_squared = rsq(alleles, readout)
-    except Exception:
+    except:
         loglike_a = -999999
         identified = 0
         r_squared = 0

@@ -22,7 +22,7 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path,
     try:
         os.stat(out_path)
     except FileNotFoundError:
-        os.mkdir(out_path)  
+        os.mkdir(out_path)
 
     if save_intermediate:
         intermediate = os.path.join(out_path, "tmp")
@@ -45,50 +45,46 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path,
 
         parser_out = parse_vcf(feed_in, strict)
 
-        try:
-            for name, block, genotype in parser_out:
-                alleles, constants['max_allele'] = sonics.get_alleles(genotype)
-                constants['genotype_total'] = sum(alleles)
-                if constants['genotype_total'] == 0:
-                    logging.warning(("Less than 2 alleles provided in input,"
-                                     "skipping this genotype: %s"
-                                     "for sample: %s."), block, name)
-                    continue
-                #determine if can add noise
-                frac = (np.amin(alleles[alleles.nonzero()])
-                        / sum(alleles)
-                        * np.count_nonzero(alleles))
-                noise_coef = frac / (frac + 1)
-                constants['alleles'] = alleles
-                constants['noise_coef'] = noise_coef
+        for name, block, genotype in parser_out:
+            alleles, constants['max_allele'] = sonics.get_alleles(genotype)
+            constants['genotype_total'] = sum(alleles)
+            if constants['genotype_total'] == 0:
+                logging.warning(("Less than 2 alleles provided in input,"
+                                 "skipping this genotype: %s"
+                                 "for sample: %s."), block, name)
+                continue
+            #determine if can add noise
+            frac = (np.amin(alleles[alleles.nonzero()])
+                    / sum(alleles)
+                    * np.count_nonzero(alleles))
+            noise_coef = frac / (frac + 1)
+            constants['alleles'] = alleles
+            constants['noise_coef'] = noise_coef
 
-                
-                logging.info("Initiating simulation for %s %s", name, block)
-                start = time.time()
-                result = sonics.monte_carlo(
-                    repetitions,
-                    constants,
-                    ranges,
-                    intermediate,
-                    block,
-                    name,
-                    verbose=verbose
-                )
-                elapsed = time.time() - start
-                logging.info(result)
-                with open(out_file_path, "a+") as out_file:
-                    out_file.write("{}\t{}\t{}\n".format(name, block, result))
-                logging.debug("Monte Carlo simulation took: %f second(s)", elapsed)
-        except TypeError:
-            raise Exception(("There is something wrong with VCF file: %s"
-                             "record: %s"), feed_in, parser_out)
+            logging.info("Initiating simulation for %s %s", name, block)
+            start = time.time()
+            result = sonics.monte_carlo(
+                repetitions,
+                constants,
+                ranges,
+                intermediate,
+                block,
+                name,
+                verbose=verbose
+            )
+            elapsed = time.time() - start
+            logging.info(result)
+            with open(out_file_path, "a+") as out_file:
+                out_file.write("{}\t{}\t{}\n".format(name, block, result))
+            logging.debug("Monte Carlo simulation took: %f second(s)", elapsed)
+
     else:
         genotype = feed_in
         alleles, constants['max_allele'] = sonics.get_alleles(genotype)
         constants['genotype_total'] = sum(alleles)
         if constants['genotype_total'] == 0:
             logging.error(("Less than 2 alleles provided in the input,"
-                            "%s sample: %s."), block, name)
+                           "%s sample: %s."), block, name)
             return
 
         frac = (np.amin(alleles[alleles.nonzero()])
@@ -151,26 +147,41 @@ def parse_vcf(file_path, strict=1):
                 continue
             line_list = line.split("\t")
             block_name = line_list[0]
-            ref = int(regexp_ref.search(line_list[7]).group(1).split(".")[0])
-            motif_length = len(regexp_motif.search(line_list[7]).group(1))
+            info_field = line_list[7]
+            try:
+                ref = int(regexp_ref.search(info_field).group(1).split(".")[0])
+            except AttributeError:
+                raise Exception(("There's something wrong with the vcf file, "
+                                 "expecting REF in the INFO field "
+                                 "in the 8th column."))
+            try:
+                motif_length = len(regexp_motif.search(info_field).group(1))
+            except AttributeError:
+                raise Exception(("There's something wrong with the vcf file, "
+                                 "expecting MOTIF in the INFO field "
+                                 "in the 8th column."))
+
             all_reads_loc = line_list[8].split(":").index("ALLREADS")
             for sample in samples:
                 gt_string = line_list[sample_ind].split(":")[all_reads_loc]
                 gt_list = gt_string.split(";")
-                alleles_list = [int(f.split("|")[0]) / motif_length + ref for f in gt_list]
+                alleles_list = [
+                    int(f.split("|")[0]) / motif_length + ref for f in gt_list
+                ]
                 alleles = np.array(alleles_list)
-                support = np.array([f.split("|")[1] for f in gt_list], dtype=int)
+                support = np.array([f.split("|")[1] for f in gt_list],
+                                   dtype=int)
                 diff = alleles % 1
                 if sum(diff != 0) > 0:
                     if strict == 2:
-                        logging.warning(("Partial repetition of the motif in"
-                                         "block: %s sample: %s."
+                        logging.warning(("Partial repetition of the motif in "
+                                         "block: %s sample: %s. "
                                          "Excluding."), block_name, sample)
                         continue
                     elif strict == 0:
-                        logging.warning(("Partial repetition of the motif in"
-                                         "block: %s, sample: %s. Adding"
-                                         "support from partial allele to one"
+                        logging.warning(("Partial repetition of the motif in "
+                                         "block: %s, sample: %s. Adding "
+                                         "support from partial allele to one "
                                          "of the closest allele on random."),
                                         block_name, sample)
 
@@ -179,10 +190,12 @@ def parse_vcf(file_path, strict=1):
                             support[int(partial) + choice] += support[partial]
                             support[partial] = 0
                     else:
-                        logging.warning(("Partial repetition of the motif in"
-                                         "block: %s sample: %s. Excluding"
-                                         "allele"), block_name, sample)
-                genot_list = ["%i|%i" %(a, s) for a, s in zip(alleles, support) if s > 0]
+                        logging.warning(("Partial repetition of the motif in "
+                                         "block: %s sample: %s. Excluding "
+                                         "allele."), block_name, sample)
+                genot_list = [
+                    "%i|%i" %(a, s) for a, s in zip(alleles, support) if s > 0
+                ]
                 genot = ";".join(genot_list)
                 genotypes_list.append((sample, block_name, genot))
                 sample_ind += 1
@@ -267,7 +280,6 @@ def main():
     )
     parser.add_argument(
         "-p", "--pvalue_threshold",
-        nargs=1,
         metavar="PVALUE",
         type=float,
         default=0.01,
