@@ -4,6 +4,8 @@ import argparse
 import logging
 import time
 import shutil
+from itertools import repeat
+from multiprocessing import Pool
 import numpy as np
 import sonics
 
@@ -12,19 +14,20 @@ Monte Carlo simulation of PCR based sequencing of Short Tandem
 Repeats with one or two alleles as a starting condition.
 """
 
-def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path,
-               file_name="sonics_out", vcf_mode=False, save_intermediate=False,
-               name="sample", block="Block", verbose=False):
+def run_sonics(feed_in, constants, ranges, sonics_run_options):
     """
     save_intermediate => create tmp directory with files for each starting
     conditions. Each file would have one PCR pool per line.
     """
+    out_path = sonics_run_options['out_path']
+    file_name = sonics_run_options['file_name']
+
     try:
         os.stat(out_path)
     except FileNotFoundError:
         os.mkdir(out_path)
 
-    if save_intermediate:
+    if sonics_run_options['save_intermediate']:
         intermediate = os.path.join(out_path, "tmp")
         try:
             os.stat(intermediate)
@@ -36,85 +39,53 @@ def run_sonics(feed_in, constants, ranges, strict, repetitions, out_path,
     #output file path
     out_file_path = os.path.join(out_path, file_name)
 
-    if vcf_mode:
+    #options for processing one genotype
+    options = (sonics_run_options['repetitions'],
+               intermediate,
+               sonics_run_options['verbose'],
+               out_file_path)
+
+    if sonics_run_options['vcf_mode']:
         #delete output file if exists
         try:
             os.remove(out_file_path)
         except OSError:
             pass
 
-        parser_out = parse_vcf(feed_in, strict)
+        parser_out = parse_vcf(feed_in, sonics_run_options['strict'])
 
-        for name, block, genotype in parser_out:
-            alleles, constants['max_allele'] = sonics.get_alleles(genotype)
-            constants['genotype_total'] = sum(alleles)
-            if constants['genotype_total'] == 0:
-                logging.warning(("Less than 2 alleles provided in input,"
-                                 "skipping this genotype: %s"
-                                 "for sample: %s."), block, name)
-                continue
-            #determine if can add noise
-            frac = (np.amin(alleles[alleles.nonzero()])
-                    / sum(alleles)
-                    * np.count_nonzero(alleles))
-            noise_coef = frac / (frac + 1)
-            constants['alleles'] = alleles
-            constants['noise_coef'] = noise_coef
+        if not parser_out:
+            raise Exception("No valid genotype after parsing VCF file.")
 
-            logging.info("Initiating simulation for %s %s", name, block)
-            start = time.time()
-            result = sonics.monte_carlo(
-                repetitions,
-                constants,
-                ranges,
-                intermediate,
-                block,
-                name,
-                verbose=verbose
-            )
-            elapsed = time.time() - start
-            logging.info(result)
-            with open(out_file_path, "a+") as out_file:
-                out_file.write("{}\t{}\t{}\n".format(name, block, result))
-            logging.debug("Monte Carlo simulation took: %f second(s)", elapsed)
+        if sonics_run_options['processes'] > 0:
+            pool = Pool(sonics_run_options['processes'])
+            pool.starmap(process_one_genotype, zip(parser_out,
+                                                   repeat(constants),
+                                                   repeat(ranges),
+                                                   repeat(options)))
+        else:
+
+            print(parser_out)
+            list(map(process_one_genotype,
+                     parser_out,
+                     repeat(constants),
+                     repeat(ranges),
+                     repeat(options)))
 
     else:
         genotype = feed_in
-        alleles, constants['max_allele'] = sonics.get_alleles(genotype)
-        constants['genotype_total'] = sum(alleles)
-        if constants['genotype_total'] == 0:
-            logging.error(("Less than 2 alleles provided in the input,"
-                           "%s sample: %s."), block, name)
-            return
+        input_tuple = (
+            sonics_run_options['name'],
+            sonics_run_options['block'],
+            genotype
+        )
 
-        frac = (np.amin(alleles[alleles.nonzero()])
-                / sum(alleles)
-                * np.count_nonzero(alleles))
-
-        noise_coef = frac / (frac + 1)
-        constants['alleles'] = alleles
-        constants['noise_coef'] = noise_coef
-
-        if constants['genotype_total'] == 0:
-            raise Exception((
-                "Less than 2 alleles provided in input, skipping this"
-                "genotype: {} for the sample: {}.").format(genotype, name))
-        logging.info("Initiating simulation")
-        start = time.time()
-        result = sonics.monte_carlo(
-            repetitions,
+        process_one_genotype(
+            input_tuple,
             constants,
             ranges,
-            block=block,
-            name=name,
-            verbose=verbose
+            options
         )
-        elapsed = time.time() - start
-        logging.info(result)
-        with open(out_file_path, "w+") as out_file:
-            out_file.write("{}\t{}\t{}\n".format(name, block, result))
-        logging.debug("Monte Carlo simulation took: %f second(s)", elapsed)
-
 
 def parse_vcf(file_path, strict=1):
     """
@@ -162,6 +133,7 @@ def parse_vcf(file_path, strict=1):
                                  "in the 8th column."))
 
             all_reads_loc = line_list[8].split(":").index("ALLREADS")
+
             for sample in samples:
                 gt_string = line_list[sample_ind].split(":")[all_reads_loc]
                 gt_list = gt_string.split(";")
@@ -201,6 +173,51 @@ def parse_vcf(file_path, strict=1):
                 sample_ind += 1
     return genotypes_list
 
+def process_one_genotype(input_tuple, constants, ranges, options):
+    """runs one Monte Carlo simulation"""
+    repetitions, intermediate, verbose, out_file_path = options
+    name, block, genotype = input_tuple
+    alleles, constants['max_allele'] = sonics.get_alleles(genotype)
+    constants['genotype_total'] = sum(alleles)
+
+    if constants['genotype_total'] == 0:
+        logging.warning(("Less than 2 alleles provided in input,"
+                         "skipping this genotype: %s"
+                         "for sample: %s."), block, name)
+        return
+    #determine if can add noise
+    frac = (np.amin(alleles[alleles.nonzero()])
+            / sum(alleles)
+            * np.count_nonzero(alleles))
+    noise_coef = frac / (frac + 1)
+
+    constants['alleles'] = alleles
+    constants['noise_coef'] = noise_coef
+
+    logging.info("Initiating simulation for %s %s", name, block)
+
+    all_simulation_params = {
+        'intermediate': intermediate,
+        'verbose': verbose,
+        'block': block,
+        'name': name
+    }
+
+    start = time.time()
+    result = sonics.monte_carlo(
+        repetitions,
+        constants,
+        ranges,
+        all_simulation_params
+    )
+    elapsed = time.time() - start
+
+    logging.info(result)
+    with open(out_file_path, "a+") as out_file:
+        out_file.write("{}\t{}\t{}\n".format(name, block, result))
+
+    logging.debug("Monte Carlo simulation took: %f second(s)", elapsed)
+
 #TODO: Rewrite help.
 
 def main():
@@ -235,13 +252,24 @@ def main():
         "-n", "--file_name",
         type=str,
         default="sonics_out.txt",
-        help="Output file name. Default: sonics_out.txt",
-        metavar="FILE_NAME"
+        metavar="FILE_NAME",
+        help="Output file name. Default: sonics_out.txt"
     )
     parser.add_argument(
+        "-p", "--processes",
+        type=int,
+        default=0,
+        metavar="PROCESSES",
+        help=("Number of sub-processes used in multiprocessing mode. "
+              "It can be understood as additional processes lunched by "
+              "the main sonics process and 0 means that SONiCS won't "
+              "lunch additional processes. "
+              "This option is valid only in VCF mode. Default: 0"))
+    parser.add_argument(
         "-t", "--strict",
-        metavar="N",
+        type=int,
         default=1,
+        metavar="N",
         help=("Procedure when encountered partial repetitions of the motif"
               "while parsing the VCF file. Options: 0 - pick on random one of"
               "the closest alleles, 1 - exclude given STR, 2 -exclude given"
@@ -279,7 +307,7 @@ def main():
         help="Number of maximum repetitions in the simulations. Default: 1000"
     )
     parser.add_argument(
-        "-p", "--pvalue_threshold",
+        "-g", "--pvalue_threshold",
         metavar="PVALUE",
         type=float,
         default=0.01,
@@ -396,7 +424,7 @@ def main():
     parser.add_argument(
         '--version',
         action='version',
-        version='%(prog)s 0.0.2'
+        version='%(prog)s 0.0.4'
     )
 
     args = parser.parse_args()
@@ -441,21 +469,27 @@ def main():
         args.capture,
         args.efficiency
     )
+
     verb = True if args.verbose else False
+
+    sonics_run_options = {
+        'repetitions': args.repetitions,
+        'out_path': args.out_path,
+        'strict': args.strict,
+        'file_name': args.file_name,
+        'vcf_mode': args.vcf_mode,
+        'save_intermediate': args.save_intermediate,
+        'name': args.name,
+        'block': args.block,
+        'processes': args.processes,
+        'verbose': verb
+    }
 
     run_sonics(
         feed_in=args.INPUT,
         constants=constants,
         ranges=ranges,
-        strict=args.strict,
-        repetitions=args.repetitions,
-        out_path=args.out_path,
-        file_name=args.file_name,
-        vcf_mode=args.vcf_mode,
-        save_intermediate=args.save_intermediate,
-        name=args.name,
-        block=args.block,
-        verbose=verb
+        sonics_run_options=sonics_run_options
     )
 
     if args.save_intermediate:

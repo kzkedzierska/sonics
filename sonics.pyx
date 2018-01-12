@@ -17,8 +17,6 @@ __email__ = "kzk5f@virginia.edu"
 
 
 
-# cython: linetrace=True
-
 # FUNCTIONS RUN ONLY ONCE/TWICE PER GENOTYPE
 def get_alleles(genot_input):
     """get a dictionary with alleles as keys and number_of_reads as values
@@ -48,14 +46,19 @@ def generate_params(r, pref):
         u = np.random.uniform(up[0] + small_number, d)
     c = np.random.uniform(cap[0] + small_number, cap[1])
     p = np.random.uniform(eff[0] + small_number, eff[1])  # pcr-efficiency
-    # logging.debug({'down': d, 'up': u, 'capture': c, 'efficiency': p})
+
     return {'down': d, 'up': u, 'capture': c, 'efficiency': p}
 
-def monte_carlo(max_n_reps, constants, ranges, intermediate=None,
-                block="", name="", verbose=False):
+def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     """Runs Monte Carlo simulation of the PCR amplification until
     p_value threshold for the Mann Whitney test is reached or
     the number of repetition reaches the maximum.
+
+    Arguments:
+    max_n_reps -- upper limit for number of repetitions run
+    constants -- constants throughout the simulations
+    ranges -- ranges for generation PCR simulation specific parameters
+    all_simulation_params -- parameters shared throughout all simulations
 
     Scheme:
     1) Run the first n repetitions.
@@ -67,10 +70,14 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None,
     repetitions or 2*n it's the odd. That way the sop will be made
     every 100, 500, 1000, 5000 etc. repetitions.
 
-    Modification in intermediate mode:
-    Instead of running the repetitions
+    Modification in intermediate mode - instead of running 
+    the repetitions. Intermediate mode is run if and only if there is
+    no noise added to the initial pool. 
+
     """
     pvalue_threshold = constants["pvalue_threshold"]
+    block = all_simulation_params['block']
+    name = all_simulation_params['name']
     """successful - parameter that helps distinguish between
     the simulations needing more repetitions and the ones
     that are beyond the abilities of SONiCS"""
@@ -81,17 +88,14 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None,
     reps = 100 if max_n_reps > 100 else max_n_reps
     while run_reps < max_n_reps:
 
-        current_rep = 1
-        while current_rep < reps:
-            one_result = one_repeat(
-                "two_alleles",
-                constants,
-                ranges,
-                intermediate,
-                reps
-            )
-            results.append(one_result)
-            current_rep += 1
+        results.extend(list(map(
+            one_repeat,
+            repeat("two_alleles", reps),
+            repeat(constants),
+            repeat(ranges),
+            repeat(all_simulation_params['intermediate']),
+            repeat(reps)
+        )))
 
         """even out the comparisons between homozygous and each
         of the heterozygous genotypes group by genotype"""
@@ -99,43 +103,14 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None,
         #get the median of number of simulations per each genotype
         homo_reps = int(results_pd_tmp.size().median())
 
-        current_rep = 1
-        while current_rep < homo_reps:
-            one_result = one_repeat(
-                "one_allele",
-                constants,
-                ranges,
-                intermediate,
-                reps
-            )
-            results.append(one_result)
-            current_rep += 1
-
-
-
-        # results.extend(list(map(
-        #     one_repeat,
-        #     repeat("two_alleles", reps),
-        #     repeat(constants),
-        #     repeat(ranges),
-        #     repeat(intermediate),
-        #     repeat(reps)
-        # )))
-
-        # """even out the comparisons between homozygous and each
-        # of the heterozygous genotypes group by genotype"""
-        # results_pd_tmp = pd.DataFrame.from_records(results).groupby(3)
-        # #get the median of number of simulations per each genotype
-        # homo_reps = int(results_pd_tmp.size().median())
-
-        # results.extend(list(map(
-        #     one_repeat,
-        #     repeat("one_allele", homo_reps),
-        #     repeat(constants),
-        #     repeat(ranges),
-        #     repeat(intermediate),
-        #     repeat(reps)
-        # )))
+        results.extend(list(map(
+            one_repeat,
+            repeat("one_allele", homo_reps),
+            repeat(constants),
+            repeat(ranges),
+            repeat(all_simulation_params['intermediate']),
+            repeat(reps)
+        )))
 
         run_reps += reps
 
@@ -177,7 +152,7 @@ def monte_carlo(max_n_reps, constants, ranges, intermediate=None,
 
         reps_round += 1
 
-    if verbose:
+    if all_simulation_params['verbose']:
         results_pd.to_csv("{}_{}.txt".format(block, name),
                           sep="\t", header=False, index=False)
 
@@ -265,9 +240,8 @@ def one_repeat(str simulation_type, dict constants, tuple ranges,
 
     else:
         if intermediate != None:
-            """TODO: check if range ok => if starting conditions of 
-            the pool included the alleles from present input"""
             dir_path = os.path.join(intermediate, "_".join(initial.split("/")))
+
             try:
                 os.stat(dir_path)
             except:
@@ -279,7 +253,8 @@ def one_repeat(str simulation_type, dict constants, tuple ranges,
                 to_load = np.random.choice(saved_pools)
                 PCR_products = np.load(os.path.join(dir_path, to_load))
             else:
-                to_save = str(max([int(f.strip(".npy")) for f in saved_pools]) + 1) if len(saved_pools) > 0 else '1'
+                max_pool = max([int(f.strip(".npy")) for f in saved_pools])
+                to_save = str(max_pool + 1) if len(saved_pools) > 0 else '1'
                 # PCR simulation
                 PCR_products = simulate(PCR_products, constants, parameters)
                 np.save(os.path.join(dir_path, to_save), PCR_products)
@@ -292,40 +267,26 @@ def one_repeat(str simulation_type, dict constants, tuple ranges,
     #genotype generation
     mid = []
     for allele in range(max_allele):
-        n_times = np.random.binomial(genotype_total, PCR_products[allele] / PCR_total_molecules)
+        n_times = np.random.binomial(genotype_total, 
+                                     PCR_products[allele] / PCR_total_molecules)
         allele_molecules = list(repeat(allele, n_times))
         mid.extend(allele_molecules)
 
-
-    # mid = map(
-    #     lambda al: list(repeat(
-    #         al,
-    #         np.random.binomial(genotype_total, PCR_products[al] / PCR_total_molecules)
-    #     )),
-    #     range(max_allele)
-    # )
-
-    #mid = list(chain.from_iterable(mid))
-
-    try:
+    
+    if sum(alleles > PCR_products) != 0:
+        loglike_a = -999999
+    else:
         loglike_a = mhl(alleles, PCR_products) 
-    except:
-        loglike_a = -999999
 
-    # pick from PCR pool genotype
-    try:
-        """Simulate readout from PCR pool and compare it to the readout
-        from the input."""
-        readout = np.bincount(np.random.choice(mid, genotype_total))
-        readout.resize(max_allele)
-        # model statistics
-        alleles_nonzero = alleles.nonzero()[0]
-        identified = (sum([min(alleles[index], readout[index]) for index in alleles_nonzero])) / genotype_total
-        r_squared = rsq(alleles, readout)
-    except:
-        loglike_a = -999999
-        identified = 0
-        r_squared = 0
+    """Simulate readout from PCR pool and compare it to the readout
+    from the input."""
+    readout = np.bincount(np.random.choice(mid, genotype_total))
+    readout.resize(max_allele)
+    # model statistics
+    alleles_nonzero = alleles.nonzero()[0]
+    identified = ((sum([min(alleles[i], readout[i]) for i in alleles_nonzero]))
+                  / genotype_total)
+    r_squared = rsq(alleles, readout)
 
     report = [identified, r_squared, loglike_a, initial, noise_coef]
     return report
