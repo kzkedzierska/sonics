@@ -9,6 +9,9 @@ from multiprocessing import Pool
 import numpy as np
 import sonics
 
+__author__ = "Katarzyna Kedzierska"
+__email__ = "kzk5f@virginia.edu"
+
 DESC = """SONiCS - Stutter mONte Carlo Simulation
 Monte Carlo simulation of PCR based sequencing of Short Tandem
 Repeats with one or two alleles as a starting condition.
@@ -64,8 +67,6 @@ def run_sonics(feed_in, constants, ranges, sonics_run_options):
                                                    repeat(ranges),
                                                    repeat(options)))
         else:
-
-            print(parser_out)
             list(map(process_one_genotype,
                      parser_out,
                      repeat(constants),
@@ -160,11 +161,14 @@ def parse_vcf(file_path, strict=1):
                         for partial in alleles[diff != 0]:
                             choice = np.random.choice([0, 1])
                             support[int(partial) + choice] += support[partial]
-                            support[partial] = 0
+                            support[diff.nonzero()[0]] = 0
                     else:
                         logging.warning(("Partial repetition of the motif in "
                                          "block: %s sample: %s. Excluding "
                                          "allele."), block_name, sample)
+                        for partial in alleles[diff != 0]:
+                            support[diff.nonzero()[0]] = 0
+
                 genot_list = [
                     "%i|%i" %(a, s) for a, s in zip(alleles, support) if s > 0
                 ]
@@ -181,8 +185,9 @@ def process_one_genotype(input_tuple, constants, ranges, options):
     constants['genotype_total'] = sum(alleles)
 
     if constants['genotype_total'] == 0:
-        logging.warning(("Less than 2 alleles provided in input,"
-                         "skipping this genotype: %s"
+        #TODO: implement printing: block name . . . . 0 
+        logging.warning(("Less than 2 alleles provided in input, "
+                         "skipping this genotype: %s "
                          "for sample: %s."), block, name)
         return
     #determine if can add noise
@@ -219,6 +224,7 @@ def process_one_genotype(input_tuple, constants, ranges, options):
     logging.debug("Monte Carlo simulation took: %f second(s)", elapsed)
 
 #TODO: Rewrite help.
+#TODO: pvalue ==> padjsuted
 
 def main():
     parser = argparse.ArgumentParser(
@@ -310,8 +316,8 @@ def main():
         "-g", "--pvalue_threshold",
         metavar="PVALUE",
         type=float,
-        default=0.01,
-        help="P-value threshold for selecting the allele. Default: 0.01"
+        default=0.001,
+        help="P-value threshold for selecting the allele. Default: 0.001"
     )
     parser.add_argument(
         "-s", "--start_copies",
@@ -399,15 +405,8 @@ def main():
         "-x", "--random",
         action="store_true",
         help=("Randomly select alleles for simulations from the input."
-              "Default: selects both alleles based on the support information"
-              "from the input.")
-    )
-    parser.add_argument(
-        "-y", "--half_random",
-        action="store_true",
-        help=("Randomly select only the second allele, the first is the most"
-              "supported one. Default: selects both alleles based on the"
-              "support information from the input.")
+              "Default: randomly select only one of the alleles, the other"
+              "is chosen based on the support information from input.")
     )
     parser.add_argument(
         "-z", "--up_preference",
@@ -452,7 +451,6 @@ def main():
 
     constants = {
         'random': args.random,
-        'half_random': args.half_random,
         'n_cycles': n_cycles,
         'capture_cycle': capture_cycle,
         'up_preference': args.up_preference,

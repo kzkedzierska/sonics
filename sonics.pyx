@@ -10,12 +10,8 @@ cimport numpy as np
 DTYPE = np.int
 ctypedef np.int_t DTYPE_t
 
-# inspired by Perl script stutterSim.pl by Logan Kistler
-
 __author__ = "Katarzyna Kedzierska"
 __email__ = "kzk5f@virginia.edu"
-
-
 
 # FUNCTIONS RUN ONLY ONCE/TWICE PER GENOTYPE
 def get_alleles(genot_input):
@@ -81,68 +77,59 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     """successful - parameter that helps distinguish between
     the simulations needing more repetitions and the ones
     that are beyond the abilities of SONiCS"""
-    successful = True
     results = list()
     run_reps = 0
     reps_round = 1
     reps = 100 if max_n_reps > 100 else max_n_reps
+
     while run_reps < max_n_reps:
 
         results.extend(list(map(
             one_repeat,
-            repeat("two_alleles", reps),
-            repeat(constants),
-            repeat(ranges),
-            repeat(all_simulation_params['intermediate']),
-            repeat(reps)
-        )))
-
-        """even out the comparisons between homozygous and each
-        of the heterozygous genotypes group by genotype"""
-        results_pd_tmp = pd.DataFrame.from_records(results).groupby(3)
-        #get the median of number of simulations per each genotype
-        homo_reps = int(results_pd_tmp.size().median())
-
-        results.extend(list(map(
-            one_repeat,
-            repeat("one_allele", homo_reps),
-            repeat(constants),
+            repeat(constants, reps),
             repeat(ranges),
             repeat(all_simulation_params['intermediate']),
             repeat(reps)
         )))
 
         run_reps += reps
-
-        results_pd = pd.DataFrame.from_records(results)
-        #get the allele for which the median log likelihood is the highest
-        highest_loglike = results_pd.groupby(3)[2].median().sort_values(ascending=False).head(n=1).index[0]
-        #get the set of other alleles
-        other_alleles = set(results_pd[3]) - set([highest_loglike])
-        high_pval = 0
-        n_tests = 0
-        for b in other_alleles:
-            if successful:
+        #group by the initial genotype
+        results_colnames = ['ident', 'r_squared', 'log_like', 'genotype', 'noise_coef']
+        results_pd = pd.DataFrame.from_records(results, columns=results_colnames).groupby("genotype")
+        #get the medians for log likelihoods in groups
+        results_medians = results_pd.median().sort_values(by="log_like", ascending=False)
+        #check what's the minimum of simulations per genotype
+        min_sim = results_pd.size().sort_values().iloc[0]
+        #check for minimum number of simulations
+        if min_sim > 25:
+            #get the allele for which the median log likelihood is the highest
+            highest_loglike = results_medians.index[0]
+            best_allele = results_pd.get_group(highest_loglike)
+            #get the set of other alleles
+            other_alleles = set(results_medians.index) - set([highest_loglike])
+            high_pval = 0
+            n_tests = 0
+            for b in other_alleles:
                 try:
                     stat, pval = mannwhitneyu(
-                        results_pd.groupby(3)[2].get_group(highest_loglike),
-                        results_pd.groupby(3)[2].get_group(b),
+                        best_allele.iloc[:,2],
+                        results_pd.get_group(b).iloc[:,2],
                         alternative="greater"
                     )
-                    n_tests += 1
 
                     high_pval = max(pval, high_pval)
                 except ValueError:
-                    successful = False
-                    logging.warning(("SONiCS cannot resolve genotype for "
-                                     "sample: %s block: %s"), name, block)
-                    break
+                    high_pval = 1
 
-        #check if p_value threshold is satisfied
-        high_pval *= n_tests
-        if high_pval < pvalue_threshold:
-            logging.debug("Will break! P-value: {}".format(high_pval))
-            break
+                n_tests += 1
+
+            #Bonferroni correction in its essence
+            high_pval *= n_tests
+            #check if p_value threshold is satisfied
+            if high_pval < pvalue_threshold:
+                logging.debug("Will break! P-value: {}".format(high_pval))
+                break
+
         #calculate additional repetitions
         reps = 4 * run_reps if reps_round % 2 == 1 else run_reps
 
@@ -153,23 +140,33 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
         reps_round += 1
 
     if all_simulation_params['verbose']:
-        results_pd.to_csv("{}_{}.txt".format(block, name),
-                          sep="\t", header=False, index=False)
+        results_pd_csv = pd.DataFrame.from_records(results, columns=results_colnames)
+        results_pd_csv.to_csv("{}_{}.txt".format(block, name),
+                              sep="\t", header=False, index=False)
 
-    if successful:
-        results_groupedby_allele = results_pd[results_pd[2] > -999999].groupby(3)
-        best_allele = results_groupedby_allele.get_group(highest_loglike)
-        best_guess = best_allele.sort_values(0, ascending=False).head(n=1)
+    high_pval = high_pval if high_pval < 1 else 1
+    not_zero = best_allele.log_like > -999999
+    best_guess = best_allele[not_zero].sort_values("log_like", ascending=False).head(n=1)
+
+    if best_guess.empty:
         ret = "{}\t{}\t{}\t{}\t{}\t{}".format(
-            best_guess[0].item(), #ident
-            best_guess[1].item(), #r2
-            best_guess[2].item(), #log_likelihood
-            high_pval, #highest p_value
-            run_reps, #repetitions
-            best_guess[3].item() #genotype n_reps/n_reps
+            0, 
+            0, 
+            0, 
+            high_pval, 
+            run_reps, 
+            "./."
         )
     else:
-        ret = "{}\t{}\t{}\t{}\t{}\t{}".format(0, 0, 0, 1, run_reps, "./.")
+        ret = "{}\t{}\t{}\t{}\t{}\t{}".format(
+            best_guess["ident"].item(), #ident
+            best_guess["r_squared"].item(), #r2
+            results_medians['log_like'].head(n=1).item(), #median log_likelihood 
+            high_pval, #highest p_value
+            run_reps, #repetitions
+            best_guess["genotype"].item() #genotype n_reps/n_reps
+        )
+
     return ret
 
 
@@ -184,8 +181,8 @@ def rsq(np.ndarray true_values, np.ndarray pred_values):
     ss_res = sum([i ** 2 for i in true_values - pred_values])
     return 1 - ss_res / ss_tot
 
-def one_repeat(str simulation_type, dict constants, tuple ranges,
-               intermediate=None, how_many_reps=100):
+def one_repeat(dict constants, tuple ranges,
+               intermediate=None, int how_many_reps=100):
     """Calls PCR simulation function, based on PCR products generates 
     genotype and calculates model statistics"""
     cdef int total_molecule, first, second, genotype_total, max_allele
@@ -202,44 +199,31 @@ def one_repeat(str simulation_type, dict constants, tuple ranges,
     alleles = constants['alleles']
     total_molecules = 0
 
-    #Select initial molecules based on simulation parameters
-    if simulation_type == "one_allele":
-        if constants['random']:
-            first = np.random.choice(alleles.nonzero()[0])
-        else:
-            # if not random, simulate PCR for an allele with max reads in the genotype
-            first = np.argmax(alleles)
-        # logging.info(PCR.max_allele)
-        PCR_products[first] = constants['start_copies']
-        initial = "{}/{}".format(first, first)
-    else:
-        if len(alleles.nonzero()[0]) == 1:
+    if len(alleles.nonzero()[0]) == 1:
             raise Exception("Less then two alleles as starting conditions! Aborting.")
-        else:
-            if constants['random']:
-                first, second = tuple(np.random.choice(alleles.nonzero()[0], 2))
-            elif constants['half_random']:
-                first = alleles.argmax()
-                second = np.random.choice(alleles.nonzero()[0][alleles.nonzero()[0] != first])
-            else:
-                # if not random, simulate PCR for the alleles with max reads in the genotype
-                first = alleles.argmax()
-                second = np.argsort(-alleles)[1]
-        PCR_products[first] = constants['start_copies'] / 2
-        PCR_products[second] = constants['start_copies'] / 2
-        #logging.debug("Starting PCR with alleles: %d, %d" %(first, second))
-        if first < second:
-            initial = "{}/{}".format(first, second)
-        else:
-            initial = "{}/{}".format(second, first)
+
+    if constants['random']:
+        first, second = tuple(np.random.choice(alleles.nonzero()[0], 2))
+    else:
+        first = alleles.argmax()
+        second = np.random.choice(alleles.nonzero()[0])
+
+    PCR_products[first] += constants['start_copies'] / 2
+    PCR_products[second] += constants['start_copies'] / 2
+
+    if first < second:
+        initial = "{}/{}".format(first, second)
+    else:
+        initial = "{}/{}".format(second, first)
 
     if noise_coef < noise_threshold:
         noise = np.copy(alleles)
         noise[noise > 0] = noise_coef * sum(PCR_products)
         PCR_products += noise
-
+        PCR_products = simulate(PCR_products, constants, parameters)
     else:
         if intermediate != None:
+            #TODO: simulate min_initial_max
             dir_path = os.path.join(intermediate, "_".join(initial.split("/")))
 
             try:
@@ -267,6 +251,13 @@ def one_repeat(str simulation_type, dict constants, tuple ranges,
     #genotype generation
     mid = []
     for allele in range(max_allele):
+        """The binomial distribution is frequently used to model the number of 
+        successes in a sample of size n drawn with replacement from 
+        a population of size N. If the sampling is carried out without
+        replacement, the draws are not independent and so the resulting 
+        distribution is a hypergeometric distribution, not a binomial one.
+        However, for N much larger than n, the binomial distribution 
+        remains a good approximation, and is widely used. [Wikipedia]"""
         n_times = np.random.binomial(genotype_total, 
                                      PCR_products[allele] / PCR_total_molecules)
         allele_molecules = list(repeat(allele, n_times))
@@ -280,8 +271,13 @@ def one_repeat(str simulation_type, dict constants, tuple ranges,
 
     """Simulate readout from PCR pool and compare it to the readout
     from the input."""
-    readout = np.bincount(np.random.choice(mid, genotype_total))
-    readout.resize(max_allele)
+    try:
+        readout = np.bincount(np.random.choice(mid, genotype_total))
+        readout.resize(max_allele)
+    except ValueError:
+        #
+        readout = np.zeros(max_allele, dtype=DTYPE)
+    
     # model statistics
     alleles_nonzero = alleles.nonzero()[0]
     identified = ((sum([min(alleles[i], readout[i]) for i in alleles_nonzero]))
@@ -296,7 +292,9 @@ def simulate(np.ndarray products, dict constants, dict parameters):
     """Simulates PCR run, includes capture step if specified by PCR parameters
     """
     cdef int floor, ct, ct_up, al, n, namp, nslip, nup, ndown, ncorrect, cc
-    cdef float up, down, efficiency, capture, pu, pd, pslip, pu_norm, floor_cap, cap_set, hit
+    cdef float efficiency, capture, floor_cap, cap_set, hit
+    cdef double up, down, prob_up, prob_down, prob_slip, pu_norm
+    cdef long seed_n
     cdef np.ndarray[DTYPE_t, ndim=1] nzp, cs
     cc = constants['capture_cycle']
     floor = products.nonzero()[0][0] - constants['floor']
@@ -322,7 +320,8 @@ def simulate(np.ndarray products, dict constants, dict parameters):
         nzp = products.nonzero()[0]
         # cycle simulation for each allele
         for al in nzp:
-            if al > floor:
+            if al >= floor:
+                seed_n = np.random.randint(1, 4294967295)
                 ct = products[al]
                 prob_up = 1 - (1 - up) ** al
                 prob_down = 1 - (1 - down) ** al
@@ -331,16 +330,20 @@ def simulate(np.ndarray products, dict constants, dict parameters):
                 try:
                     prob_up_norm = prob_up / (prob_up + prob_down) 
                 except ZeroDivisionError:
-                    logging.warning("Encountered precision error!")
-                    logging.warning("""allele: {}
-                                    products: {}
-                                    parameters: {}
-                                    constants: {}""".format(al, 
-                                                            products, 
-                                                            parameters, 
-                                                            constants))
-
-                np.random.seed(np.random.randint(1, 4294967295))
+                    logging.warning(("Encountered precision error!\n"
+                                     "allele: %s\n"
+                                     "parameters: %s\n"
+                                     "constants: %s\n"
+                                     "prob_up: %.s\n"
+                                     "prob_down: %.s\n"
+                                     "prob_down + prob_up: %s\n"
+                                     "up: %s\n"
+                                     "down: %s\n"
+                                     "seed: %s\n"), al, 
+                                    parameters, constants, prob_up, prob_down, 
+                                    prob_up + prob_down, up, down, seed_n) 
+                
+                np.random.seed(seed_n)
                 """number of molecules to which the polymerase bound,
                 i.e. number of successes where number of trials is ct
                 and probability is PCR efficiency"""
@@ -367,4 +370,7 @@ def simulate(np.ndarray products, dict constants, dict parameters):
                     """polymerase slipped producing mol_dup molecules
                     with one more repetition of the motif"""
                     products[al + 1] += mol_up
+            else:
+                mol_amp = np.random.binomial(ct, efficiency)
+                products[al] += mol_amp
     return products
