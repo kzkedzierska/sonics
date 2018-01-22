@@ -445,10 +445,6 @@ def main():
     capture_cycle = args.PCR_CYCLES + 1
     n_cycles = args.PCR_CYCLES + args.after_capture
 
-    if (args.half_random) & (args.random):
-        raise Exception(("It is not possible to execute the modes random and"
-                         "half_random at the same time."))
-
     constants = {
         'random': args.random,
         'n_cycles': n_cycles,

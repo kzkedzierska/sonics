@@ -74,6 +74,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     pvalue_threshold = constants["pvalue_threshold"]
     block = all_simulation_params['block']
     name = all_simulation_params['name']
+    successful = False
     """successful - parameter that helps distinguish between
     the simulations needing more repetitions and the ones
     that are beyond the abilities of SONiCS"""
@@ -127,6 +128,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             high_pval *= n_tests
             #check if p_value threshold is satisfied
             if high_pval < pvalue_threshold:
+                successful = True
                 logging.debug("Will break! P-value: {}".format(high_pval))
                 break
 
@@ -148,7 +150,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     not_zero = best_allele.log_like > -999999
     best_guess = best_allele[not_zero].sort_values("log_like", ascending=False).head(n=1)
 
-    if best_guess.empty:
+    if best_guess.empty or not successful:
         ret = "{}\t{}\t{}\t{}\t{}\t{}".format(
             0, 
             0, 
