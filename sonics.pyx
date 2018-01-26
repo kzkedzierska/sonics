@@ -49,13 +49,12 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     """Runs Monte Carlo simulation of the PCR amplification until
     p_value threshold for the Mann Whitney test is reached or
     the number of repetition reaches the maximum.
-
+    
     Arguments:
     max_n_reps -- upper limit for number of repetitions run
     constants -- constants throughout the simulations
     ranges -- ranges for generation PCR simulation specific parameters
     all_simulation_params -- parameters shared throughout all simulations
-
     Scheme:
     1) Run the first n repetitions.
     2) Calculate the highest p value for all the comparisons between
@@ -227,6 +226,7 @@ def one_repeat(dict constants, tuple ranges,
         noise[noise > 0] = noise_coef * sum(PCR_products)
         PCR_products += noise
         PCR_products = simulate(PCR_products, constants, parameters, floor)
+
     else:
         # PCR simulation
         PCR_products = simulate(PCR_products, constants,

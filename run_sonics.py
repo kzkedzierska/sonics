@@ -306,6 +306,20 @@ def main():
               "Default: sample")
     )
     parser.add_argument(
+        "-b", "--block",
+        type=str,
+        default="Block",
+        metavar="BLOCK",
+        help="Block name, valid only with string genotype as input. Default: Block"
+    )
+    parser.add_argument(
+        "-a", "--name",
+        type=str,
+        default="sample",
+        metavar="NAME",
+        help="Sample name, valid only with string genotype as input. Default: sample"
+    )
+    parser.add_argument(
         "-r", "--repetitions",
         default=1000,
         type=int,
@@ -463,6 +477,7 @@ def main():
         args.capture,
         args.efficiency
     )
+    verb = True if args.verbose else False
 
     verb = True if args.verbose else False
 
