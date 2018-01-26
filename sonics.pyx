@@ -65,13 +65,8 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     with new n now equal to 4*n if the it's the even round of
     repetitions or 2*n it's the odd. That way the sop will be made
     every 100, 500, 1000, 5000 etc. repetitions.
-
-    Modification in intermediate mode - instead of running 
-    the repetitions. Intermediate mode is run if and only if there is
-    no noise added to the initial pool. 
-
     """
-    pvalue_threshold = constants["pvalue_threshold"]
+    padjust = constants["padjust"]
     block = all_simulation_params['block']
     name = all_simulation_params['name']
     successful = False
@@ -89,7 +84,6 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             one_repeat,
             repeat(constants, reps),
             repeat(ranges),
-            repeat(all_simulation_params['intermediate']),
             repeat(reps)
         )))
 
@@ -103,6 +97,9 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
         min_sim = results_pd.size().sort_values().iloc[0]
         #check for minimum number of simulations
         if min_sim > 25:
+            loglike_first = results_medians.iloc[0,2]
+            loglike_second = results_medians.iloc[1,2]
+            loglike_ratio = loglike_first - loglike_second
             #get the allele for which the median log likelihood is the highest
             highest_loglike = results_medians.index[0]
             best_allele = results_pd.get_group(highest_loglike)
@@ -127,7 +124,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             #Bonferroni correction in its essence
             high_pval *= n_tests
             #check if p_value threshold is satisfied
-            if high_pval < pvalue_threshold:
+            if high_pval < padjust and loglike_ratio > constants["loglike"]:
                 successful = True
                 logging.debug("Will break! P-value: {}".format(high_pval))
                 break
@@ -151,19 +148,21 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     best_guess = best_allele[not_zero].sort_values("log_like", ascending=False).head(n=1)
 
     if best_guess.empty or not successful:
-        ret = "{}\t{}\t{}\t{}\t{}\t{}".format(
-            0, 
-            0, 
-            0, 
+        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+            ".", 
+            ".", 
+            results_medians['log_like'].head(n=1).item(),
+            loglike_ratio, 
             high_pval, 
             run_reps, 
             "./."
         )
     else:
-        ret = "{}\t{}\t{}\t{}\t{}\t{}".format(
+        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
             best_guess["ident"].item(), #ident
             best_guess["r_squared"].item(), #r2
-            results_medians['log_like'].head(n=1).item(), #median log_likelihood 
+            results_medians["log_like"].head(n=1).item(), #median log_likelihood 
+            loglike_ratio, #ratio
             high_pval, #highest p_value
             run_reps, #repetitions
             best_guess["genotype"].item() #genotype n_reps/n_reps
@@ -184,10 +183,10 @@ def rsq(np.ndarray true_values, np.ndarray pred_values):
     return 1 - ss_res / ss_tot
 
 def one_repeat(dict constants, tuple ranges,
-               intermediate=None, int how_many_reps=100):
+               int how_many_reps=100):
     """Calls PCR simulation function, based on PCR products generates 
     genotype and calculates model statistics"""
-    cdef int total_molecule, first, second, genotype_total, max_allele
+    cdef int total_molecule, first, second, genotype_total, max_allele, floor
     cdef dict parameters
     cdef str initial
     cdef float identified, r_squared, prob_a, noise_coef, noise_threshold
@@ -200,6 +199,11 @@ def one_repeat(dict constants, tuple ranges,
     parameters = generate_params(ranges, constants['up_preference'])
     alleles = constants['alleles']
     total_molecules = 0
+    if constants['floor'] == -1:
+        floor = 1
+    else:
+        floor = constants['alleles'].nonzero()[0][0] - constants['floor']
+        floor = floor if floor > 1 else 1
 
     if len(alleles.nonzero()[0]) == 1:
             raise Exception("Less then two alleles as starting conditions! Aborting.")
@@ -222,31 +226,11 @@ def one_repeat(dict constants, tuple ranges,
         noise = np.copy(alleles)
         noise[noise > 0] = noise_coef * sum(PCR_products)
         PCR_products += noise
-        PCR_products = simulate(PCR_products, constants, parameters)
+        PCR_products = simulate(PCR_products, constants, parameters, floor)
     else:
-        if intermediate != None:
-            #TODO: simulate min_initial_max
-            dir_path = os.path.join(intermediate, "_".join(initial.split("/")))
-
-            try:
-                os.stat(dir_path)
-            except:
-                os.mkdir(dir_path)
-
-            saved_pools = os.listdir(dir_path)
-
-            if len(saved_pools) > how_many_reps:
-                to_load = np.random.choice(saved_pools)
-                PCR_products = np.load(os.path.join(dir_path, to_load))
-            else:
-                max_pool = max([int(f.strip(".npy")) for f in saved_pools])
-                to_save = str(max_pool + 1) if len(saved_pools) > 0 else '1'
-                # PCR simulation
-                PCR_products = simulate(PCR_products, constants, parameters)
-                np.save(os.path.join(dir_path, to_save), PCR_products)
-        else:
-            # PCR simulation
-            PCR_products = simulate(PCR_products, constants, parameters)
+        # PCR simulation
+        PCR_products = simulate(PCR_products, constants,
+                                parameters, floor)
 
     PCR_total_molecules = np.sum(PCR_products)
 
@@ -290,17 +274,15 @@ def one_repeat(dict constants, tuple ranges,
     return report
 
 
-def simulate(np.ndarray products, dict constants, dict parameters):
+def simulate(np.ndarray products, dict constants, dict parameters, int floor):
     """Simulates PCR run, includes capture step if specified by PCR parameters
     """
-    cdef int floor, ct, ct_up, al, n, namp, nslip, nup, ndown, ncorrect, cc
+    cdef int ct, ct_up, al, n, namp, nslip, nup, ndown, ncorrect, cc
     cdef float efficiency, capture, floor_cap, cap_set, hit
     cdef double up, down, prob_up, prob_down, prob_slip, pu_norm
     cdef long seed_n
     cdef np.ndarray[DTYPE_t, ndim=1] nzp, cs
     cc = constants['capture_cycle']
-    floor = products.nonzero()[0][0] - constants['floor']
-    floor = floor if floor > 1 else 1
     up = parameters['up']
     down = parameters['down']
     capture = parameters['capture']

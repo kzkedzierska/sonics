@@ -44,7 +44,7 @@ fi
 
 #run test 
 echo "Running test on support read out: 8|9;9|20;10|24;12|1"
-"$PATH_TO_PYTHON3" run_sonics.py 12 "8|9;9|20;10|24;12|1"
+"$PATH_TO_PYTHON3" sonics 12 "8|9;9|20;10|24;12|1"
 
 if [ $? == 0 ]; then
     echo "Everything seems to be working all right."
