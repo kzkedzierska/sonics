@@ -1,9 +1,120 @@
+"""
+usage: sonics [-h] [-o OUT_PATH] [-n FILE_NAME] [-p PROCESSES] [-t N]
+              [-c AFTER_CAPTURE] [-b BLOCK] [-a NAME] [-r REPS] [-g PADJUST]
+              [-i LOGLIKE] [-s START_COPIES] [-l NOISE_THRESHOLD] [-f FLOOR]
+              [-e MIN MAX] [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [-m] [-x]
+              [-z] [-v] [--version]
+              PCR_CYCLES INPUT
+
+SONiCS - Stutter mONte Carlo Simulation Monte Carlo simulation of PCR based
+sequencing of Short Tandem Repeats with one or two alleles as a starting
+condition. Each simulation represents independent PCR reaction. Parameters
+controlling the PCR like amplification efficiency, parameters describing
+slippage up and down and capture step are randomly selected before each
+simulation. Initial alleles are chosen randomly or half randomly (in this mode
+only one allele is random, the other one will always be allele with maximum
+support). For each simulation sonics assigns log likelihood value describing
+the probability of generating the input readout from the PCR pool created in a
+given simulation. When certain number of simulations are run sonics compares
+the distributions of the log likelihood between the allele with highest median
+and all others. If adjusted highest p-value is below the threshold and median
+likelihood of the best genotype is at least e^8 times greater than second best
+sonics calls genotype. As a result, the program reports the r squared and
+fraction of properly identified reads parameters from the best simulation,
+median log likelihood, log likelihood ratio between top two genotypes, highest
+adjusted p_value from Mann-Whitney U test, number of run repeats and called
+genotype.
+
+positional arguments:
+  PCR_CYCLES            Number of PCR cycles before introducing capture step.
+  INPUT                 Either:allele composition - number of reads per
+                        allele, example: all1|reads;all2|reads or path to a
+                        VCF file if run with --vcf_mode option
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o OUT_PATH, --out_path OUT_PATH
+                        Directory where output files will be stored. Warning:
+                        SONiCS will overwrite results from previous runs
+                        stored in the same directory if the file name won't be
+                        changed. Default: .
+  -n FILE_NAME, --file_name FILE_NAME
+                        Output file name. Default: sonics_out.txt
+  -p PROCESSES, --processes PROCESSES
+                        Number of sub-processes used in multiprocessing mode.
+                        It can be understood as additional processes lunched
+                        by the main sonics process and 0 means that SONiCS
+                        won't lunch additional processes. This option is valid
+                        only in VCF mode. Default: 0
+  -t N, --strict N      What to do when encountered partial repetitions of the
+                        motif while parsing the VCF file. Options: 0 - pick on
+                        random one of the closest alleles, 1 - exclude given
+                        STR, 2 - exclude given genotype. Default: 1
+  -c AFTER_CAPTURE, --after_capture AFTER_CAPTURE
+                        How many cycles of PCR amplification were performed
+                        after introducing capture step. Default: 12
+  -b BLOCK, --block BLOCK
+                        Block name, valid only with string genotype as input.
+                        Default: Block
+  -a NAME, --name NAME  Sample name, valid only with string genotype as input.
+                        Default: sample
+  -r REPS, --repetitions REPS
+                        Number of maximum repetitions in the simulations.
+                        Default: 1000
+  -g PADJUST, --padjust PADJUST
+                        Adjusted p-value threshold for selecting the allele.
+                        Default: 0.001
+  -i LOGLIKE, --loglike LOGLIKE
+                        Log likelihood ratio threshold. Default: 2.3
+  -s START_COPIES, --start_copies START_COPIES
+                        Number of start copies. Default: 3e5
+  -l NOISE_THRESHOLD, --noise_threshold NOISE_THRESHOLD
+                        How much noise should be added? Noise shouldn't
+                        comprise more than the maximum fraction threshold of
+                        the initial PCR pool (before first amplification).
+                        Default: 0.05
+  -f FLOOR, --floor FLOOR
+                        Number that will be subtracted from the lowest number
+                        of STRs in the input genotype to set the threshold for
+                        the minimum number of STRs in a molecule for it to be
+                        included in the simulations. If set to -1 minimum
+                        number of STRs set to 1. Default: 5
+  -e MIN MAX, --efficiency MIN MAX
+                        PCR efficiency before-after per cycle, i.e.
+                        probability of the amplification. Default: (0.001,
+                        0.1)
+  -d MIN MAX, --down MIN MAX
+                        Per unit probability of down-slippage - generating a
+                        molecule with less repeats (min and max). Default: (0,
+                        0.1)
+  -u MIN MAX, --up MIN MAX
+                        Per unit probability of up-slippage - generating a
+                        molecule with more repeats (min and max). Default: (0,
+                        0.1)
+  -k MIN MAX, --capture MIN MAX
+                        Capture parameter (min and max). Values below zero
+                        favor capturing short alleles. Default: (-0.25, 0.25)
+  -m, --vcf_mode        VCF file provided. Assuming that different samples, if
+                        more than one is present, are put in the consecutive
+                        columns, starting with 10th. Default: string mode.
+  -x, --random          Randomly select alleles for simulations from the
+                        input. Default: randomly select only one of the
+                        alleles, the other is chosen based on the support
+                        information from input.
+  -z, --up_preference   Up-stutter doesn't have to be less probable than down
+                        stutter. Default: probability of down-stutter must be
+                        higher than the probability of up-stutter.
+  -v, --verbose         Verbose mode.
+  --version             show program's version number and exit
+"""
+
 import re
 import os
 import argparse
 import logging
 import time
 import shutil
+from sys import path
 from itertools import repeat
 from multiprocessing import Pool
 import numpy as np
@@ -12,16 +123,27 @@ import sonics
 __author__ = "Katarzyna Kedzierska"
 __email__ = "kzk5f@virginia.edu"
 
-DESC = """SONiCS - Stutter mONte Carlo Simulation
-Monte Carlo simulation of PCR based sequencing of Short Tandem
-Repeats with one or two alleles as a starting condition.
+DESC = """SONiCS - Stutter mONte Carlo Simulation Monte Carlo simulation of 
+PCR based sequencing of Short Tandem Repeats with one or two alleles as a 
+starting condition. Each simulation represents independent PCR reaction. 
+Parameters controlling the PCR like amplification efficiency, parameters 
+describing slippage up and down and capture step are randomly selected before 
+each simulation. Initial alleles are chosen randomly or half randomly (in this 
+mode only one allele is random, the other one will always be allele with 
+maximum support). For each simulation sonics assigns log likelihood value 
+describing the probability of generating the input readout from the PCR pool 
+created in a given simulation. When certain number of simulations are run 
+sonics compares the distributions of the log likelihood between the allele 
+with highest median and all others. If adjusted highest p-value is below the 
+threshold and median likelihood of the best genotype is at least e^8 times 
+greater than second best sonics calls genotype. As a result, the program 
+reports the r squared and fraction of properly identified reads parameters 
+from the best simulation, median log likelihood, log likelihood ratio between 
+top two genotypes, highest adjusted p_value from Mann-Whitney U test, number 
+of run repeats and called genotype.
 """
 
 def run_sonics(feed_in, constants, ranges, sonics_run_options):
-    """
-    save_intermediate => create tmp directory with files for each starting
-    conditions. Each file would have one PCR pool per line.
-    """
     out_path = sonics_run_options['out_path']
     file_name = sonics_run_options['file_name']
 
@@ -30,21 +152,11 @@ def run_sonics(feed_in, constants, ranges, sonics_run_options):
     except FileNotFoundError:
         os.mkdir(out_path)
 
-    if sonics_run_options['save_intermediate']:
-        intermediate = os.path.join(out_path, "tmp")
-        try:
-            os.stat(intermediate)
-        except FileNotFoundError:
-            os.mkdir(intermediate)
-    else:
-        intermediate = None
-
     #output file path
     out_file_path = os.path.join(out_path, file_name)
 
     #options for processing one genotype
     options = (sonics_run_options['repetitions'],
-               intermediate,
                sonics_run_options['verbose'],
                out_file_path)
 
@@ -179,7 +291,7 @@ def parse_vcf(file_path, strict=1):
 
 def process_one_genotype(input_tuple, constants, ranges, options):
     """runs one Monte Carlo simulation"""
-    repetitions, intermediate, verbose, out_file_path = options
+    repetitions, verbose, out_file_path = options
     name, block, genotype = input_tuple
     alleles, constants['max_allele'] = sonics.get_alleles(genotype)
     constants['genotype_total'] = sum(alleles)
@@ -202,7 +314,6 @@ def process_one_genotype(input_tuple, constants, ranges, options):
     logging.info("Initiating simulation for %s %s", name, block)
 
     all_simulation_params = {
-        'intermediate': intermediate,
         'verbose': verbose,
         'block': block,
         'name': name
@@ -224,11 +335,13 @@ def process_one_genotype(input_tuple, constants, ranges, options):
     logging.debug("Monte Carlo simulation took: %f second(s)", elapsed)
 
 #TODO: Rewrite help.
-#TODO: pvalue ==> padjsuted
 
 def main():
+    with open(path[0]+'/VERSION',"r") as version_file:
+        version = version_file.read().strip()
+
     parser = argparse.ArgumentParser(
-        prog="SONiCS",
+        prog="sonics",
         description=DESC
     )
     parser.add_argument(
@@ -240,8 +353,8 @@ def main():
         "INPUT",
         type=str,
         help=("Either:"
-              "allele composition - number of reads per allele,"
-              "example: all1|reads;all2|reads or path to a VCF file"
+              "allele composition - number of reads per allele, "
+              "example: all1|reads;all2|reads or path to a VCF file "
               "if run with --vcf_mode option")
     )
 
@@ -250,8 +363,9 @@ def main():
         "-o", "--out_path",
         type=str,
         default=".",
-        help=("Directory where output files will be stored. Warning: if file"
-              "with the given name exists, SONiCS will overwrite it. Default: ."),
+        help=("Directory where output files will be stored. Warning: SONiCS "
+              "will overwrite  results from previous runs stored in the same "
+              "directory if the file name won't be changed. Default: ."),
         metavar="OUT_PATH"
     )
     parser.add_argument(
@@ -276,9 +390,9 @@ def main():
         type=int,
         default=1,
         metavar="N",
-        help=("Procedure when encountered partial repetitions of the motif"
-              "while parsing the VCF file. Options: 0 - pick on random one of"
-              "the closest alleles, 1 - exclude given STR, 2 -exclude given"
+        help=("What to do when encountered partial repetitions of the motif "
+              "while parsing the VCF file. Options: 0 - pick on random one of "
+              "the closest alleles, 1 - exclude given STR, 2 - exclude given "
               "genotype. Default: 1")
     )
     parser.add_argument(
@@ -286,7 +400,7 @@ def main():
         type=int,
         default=12,
         metavar="AFTER_CAPTURE",
-        help=("How many cycles of PCR amplification were performed after"
+        help=("How many cycles of PCR amplification were performed after "
               "introducing capture step. Default: 12")
     )
     parser.add_argument(
@@ -294,7 +408,7 @@ def main():
         type=str,
         default="Block",
         metavar="BLOCK",
-        help=("Block name, valid only with string genotype as input."
+        help=("Block name, valid only with string genotype as input. "
               "Default: Block")
     )
     parser.add_argument(
@@ -302,22 +416,8 @@ def main():
         type=str,
         default="sample",
         metavar="NAME",
-        help=("Sample name, valid only with string genotype as input."
+        help=("Sample name, valid only with string genotype as input. "
               "Default: sample")
-    )
-    parser.add_argument(
-        "-b", "--block",
-        type=str,
-        default="Block",
-        metavar="BLOCK",
-        help="Block name, valid only with string genotype as input. Default: Block"
-    )
-    parser.add_argument(
-        "-a", "--name",
-        type=str,
-        default="sample",
-        metavar="NAME",
-        help="Sample name, valid only with string genotype as input. Default: sample"
     )
     parser.add_argument(
         "-r", "--repetitions",
@@ -327,11 +427,19 @@ def main():
         help="Number of maximum repetitions in the simulations. Default: 1000"
     )
     parser.add_argument(
-        "-g", "--pvalue_threshold",
-        metavar="PVALUE",
+        "-g", "--padjust",
+        metavar="PADJUST",
         type=float,
         default=0.001,
-        help="P-value threshold for selecting the allele. Default: 0.001"
+        help="Adjusted p-value threshold for selecting the allele. "
+             "Default: 0.001"
+    )
+    parser.add_argument(
+        "-i", "--loglike",
+        metavar="LOGLIKE",
+        type=float,
+        default=2.3,
+        help="Log likelihood ratio threshold. Default: 2.3"
     )
     parser.add_argument(
         "-s", "--start_copies",
@@ -344,19 +452,21 @@ def main():
         "-l", "--noise_threshold", #noise ~ loud
         default=0.05,
         type=float,
-        metavar="NOSIE_THRESHOLD",
-        help=("What fraction of the staring pool should noise comprise."
-              "Default: 0.05") #the worst sentence ever written in English
+        metavar="NOISE_THRESHOLD",
+        help=("How much noise should be added? Noise shouldn't comprise more "
+              "than the maximum fraction threshold of the initial PCR pool "
+              "(before first amplification). Default: 0.05") 
     )
     parser.add_argument(
         "-f", "--floor",
         type=int,
         default=5,
-        metavar="floor",
-        help=("Number that will be subtracted from the lowest number of STRs"
-              "in the input genotype to set the threshold for the minimum"
-              "number of STRs in a molecule for it to be included in the"
-              "simulations. Default: 5")
+        metavar="FLOOR",
+        help=("Number that will be subtracted from the lowest number of STRs "
+              "in the input genotype to set the threshold for the minimum "
+              "number of STRs in a molecule for it to be included in the "
+              "simulations. If set to -1 minimum number of STRs set to 1. "
+              "Default: 5")
     )
     parser.add_argument(
         "-e", "--efficiency",
@@ -365,7 +475,7 @@ def main():
         default=(0.001, 0.1),
         metavar=('MIN', 'MAX'),
         type=float,
-        help=("PCR efficiency before-after per cycle, i.e. probability of the"
+        help=("PCR efficiency before-after per cycle, i.e. probability of the "
               "amplification. Default: (0.001, 0.1)")
     )
     parser.add_argument(
@@ -375,7 +485,7 @@ def main():
         metavar=('MIN', 'MAX'),
         type=float,
         default=(0, 0.1),
-        help=("Per unit probability of down-slippage - generating a molecule"
+        help=("Per unit probability of down-slippage - generating a molecule "
               "with less repeats (min and max). Default: (0, 0.1)")
     )
     parser.add_argument(
@@ -385,7 +495,7 @@ def main():
         metavar=('MIN', 'MAX'),
         type=float,
         default=(0, 0.1),
-        help=("Per unit probability of up-slippage - generating a molecule"
+        help=("Per unit probability of up-slippage - generating a molecule "
               "with more repeats (min and max). Default: (0, 0.1)")
     )
     parser.add_argument(
@@ -395,38 +505,29 @@ def main():
         default=(-0.25, 0.25),
         type=float,
         metavar=('MIN', 'MAX'),
-        help=("Capture parameter (min and max). Values below zero favor"
+        help=("Capture parameter (min and max). Values below zero favor "
               "capturing short alleles. Default: (-0.25, 0.25)")
     )
     parser.add_argument(
         "-m", "--vcf_mode",
         action="store_true",
         default=False,
-        help=("VCF file provided. Assuming that different samples, if more"
-              "than one is present, are put in the consecutive columns,"
+        help=("VCF file provided. Assuming that different samples, if more "
+              "than one is present, are put in the consecutive columns, "
               "starting with 10th. Default: string mode.")
-    )
-    parser.add_argument(
-        "-i", "--save_intermediate",
-        default=False,
-        action="store_true",
-        help=("Save intermediate PCR pools when run in vcf mode to save up"
-              "time on simulating same initial conditions."
-              "Default: not saving intermediate results and simulating PCR"
-              "for each run from scratch")
     )
     parser.add_argument(
         "-x", "--random",
         action="store_true",
-        help=("Randomly select alleles for simulations from the input."
-              "Default: randomly select only one of the alleles, the other"
+        help=("Randomly select alleles for simulations from the input. "
+              "Default: randomly select only one of the alleles, the other "
               "is chosen based on the support information from input.")
     )
     parser.add_argument(
         "-z", "--up_preference",
         action="store_true",
-        help=("Up-stutter doesn't have to be less probable than down stutter."
-              "Default: probability of down-stutter higher than the"
+        help=("Up-stutter doesn't have to be less probable than down stutter. "
+              "Default: probability of down-stutter must be higher than the "
               "probability of up-stutter.")
     )
     parser.add_argument(
@@ -437,7 +538,7 @@ def main():
     parser.add_argument(
         '--version',
         action='version',
-        version='%(prog)s 0.0.4'
+        version='%(prog)s {}'.format(version)
     )
 
     args = parser.parse_args()
@@ -465,9 +566,10 @@ def main():
         'capture_cycle': capture_cycle,
         'up_preference': args.up_preference,
         'floor': args.floor,
+        'loglike': args.loglike,
         'start_copies': args.start_copies,
         'genotype': args.INPUT,
-        'pvalue_threshold': args.pvalue_threshold,
+        'padjust': args.padjust,
         'noise_threshold': args.noise_threshold
     }
 
@@ -477,7 +579,6 @@ def main():
         args.capture,
         args.efficiency
     )
-    verb = True if args.verbose else False
 
     verb = True if args.verbose else False
 
@@ -487,7 +588,6 @@ def main():
         'strict': args.strict,
         'file_name': args.file_name,
         'vcf_mode': args.vcf_mode,
-        'save_intermediate': args.save_intermediate,
         'name': args.name,
         'block': args.block,
         'processes': args.processes,
@@ -500,9 +600,6 @@ def main():
         ranges=ranges,
         sonics_run_options=sonics_run_options
     )
-
-    if args.save_intermediate:
-        shutil.rmtree(os.path.join(args.out_path, "tmp"))
 
 if __name__ == '__main__':
     main()
