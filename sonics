@@ -1,10 +1,10 @@
 """
 usage: sonics [-h] [-o OUT_PATH] [-n FILE_NAME] [-p PROCESSES] [-t N]
-              [-c AFTER_CAPTURE] [-b BLOCK] [-a NAME] [-r REPS] [-g PADJUST]
-              [-i LOGLIKE] [-s START_COPIES] [-l NOISE_THRESHOLD] [-f FLOOR]
-              [-e MIN MAX] [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [-m] [-x]
-              [-z] [-v] [--version]
-              PCR_CYCLES INPUT
+              [-y PCR_CYCLES] [-c AFTER_CAPTURE] [-b BLOCK] [-a NAME]
+              [-r REPS] [-g PADJUST] [-i LOGLIKE] [-s START_COPIES]
+              [-l NOISE_THRESHOLD] [-f FLOOR] [-e MIN MAX] [-d MIN MAX]
+              [-u MIN MAX] [-k MIN MAX] [-m] [-x] [-z] [-v] [--version]
+              INPUT
 
 SONiCS - Stutter mONte Carlo Simulation Monte Carlo simulation of PCR based
 sequencing of Short Tandem Repeats with one or two alleles as a starting
@@ -26,7 +26,6 @@ adjusted p_value from Mann-Whitney U test, number of run repeats and called
 genotype.
 
 positional arguments:
-  PCR_CYCLES            Number of PCR cycles before introducing capture step.
   INPUT                 Either:allele composition - number of reads per
                         allele, example: all1|reads;all2|reads or path to a
                         VCF file if run with --vcf_mode option
@@ -50,6 +49,8 @@ optional arguments:
                         motif while parsing the VCF file. Options: 0 - pick on
                         random one of the closest alleles, 1 - exclude given
                         STR, 2 - exclude given genotype. Default: 1
+  -y PCR_CYCLES, --pcr_cycles PCR_CYCLES
+                        Number of PCR cycles before introducing capture step.
   -c AFTER_CAPTURE, --after_capture AFTER_CAPTURE
                         How many cycles of PCR amplification were performed
                         after introducing capture step. Default: 12
@@ -106,6 +107,7 @@ optional arguments:
                         higher than the probability of up-stutter.
   -v, --verbose         Verbose mode.
   --version             show program's version number and exit
+
 """
 
 import re
@@ -248,7 +250,14 @@ def parse_vcf(file_path, strict=1):
             all_reads_loc = line_list[8].split(":").index("ALLREADS")
 
             for sample in samples:
-                gt_string = line_list[sample_ind].split(":")[all_reads_loc]
+                try:
+                  gt_string = line_list[sample_ind].split(":")[all_reads_loc]
+                except IndexError:
+                  logging.warning(("Missing ALLREADS field in the input for",
+                                   "block: %s, sample: %s"), 
+                                  block_name, sample)
+                  continue
+
                 gt_list = gt_string.split(";")
                 alleles_list = [
                     int(f.split("|")[0]) / motif_length + ref for f in gt_list
@@ -345,11 +354,6 @@ def main():
         description=DESC
     )
     parser.add_argument(
-        "PCR_CYCLES",
-        type=int,
-        help="Number of PCR cycles before introducing capture step."
-    )
-    parser.add_argument(
         "INPUT",
         type=str,
         help=("Either:"
@@ -394,6 +398,13 @@ def main():
               "while parsing the VCF file. Options: 0 - pick on random one of "
               "the closest alleles, 1 - exclude given STR, 2 - exclude given "
               "genotype. Default: 1")
+    )
+    parser.add_argument(
+        "-y", "--pcr_cycles",
+        type=int,
+        default=12,
+        metavar="PCR_CYCLES",
+        help="Number of PCR cycles before introducing capture step."
     )
     parser.add_argument(
         "-c", "--after_capture",
@@ -557,8 +568,8 @@ def main():
     logging.debug(args)
 
     #first cycle of reamplification after capture is the capture step
-    capture_cycle = args.PCR_CYCLES + 1
-    n_cycles = args.PCR_CYCLES + args.after_capture
+    capture_cycle = args.pcr_cycles + 1
+    n_cycles = args.pcr_cycles + args.after_capture
 
     constants = {
         'random': args.random,

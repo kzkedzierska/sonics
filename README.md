@@ -26,7 +26,7 @@ bash install.sh [PATH_TO_PYTHON3]
 
 ```bash
 #example run
-python3 sonics 12 "8|9;9|20;10|24;12|1"
+python3 sonics "8|9;9|20;10|24;12|1"
 ```
 
 ## DESCRIPTION
