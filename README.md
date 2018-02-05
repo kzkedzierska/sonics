@@ -64,7 +64,7 @@ REF=11, MOTIF=GT, GT=0|54;1|27;2|914;4|15
 ### PARAMETERS FOR SIMULATIONS
 
 * **-r, --repetitions N** - maximum number of repetitions per genotype, default: 1000
-* **PCR_CYCLES** - **required** parameter, number of PCR cycles before introducing the capture step
+* **-y, --pcr_cycles N** - number of PCR cycles before introducing the capture step; default: 12
 * **-c, --after_capture N** - number of PCR cycles after the introduction of the capture step; default: 12
 * **-p, --padjusted N** - threshold for Bonferroni corrected p-value of Mann Whitney test of the likelihood distributions; default: 0.01 
 
@@ -87,11 +87,11 @@ min_strs = max(1, min(alleles_in_input) - floor)
 
 ```
 usage: sonics [-h] [-o OUT_PATH] [-n FILE_NAME] [-p PROCESSES] [-t N]
-              [-c AFTER_CAPTURE] [-b BLOCK] [-a NAME] [-r REPS] [-g PADJUST]
-              [-i LOGLIKE] [-s START_COPIES] [-l NOISE_THRESHOLD] [-f FLOOR]
-              [-e MIN MAX] [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [-m] [-x]
-              [-z] [-v] [--version]
-              PCR_CYCLES INPUT
+              [-y PCR_CYCLES] [-c AFTER_CAPTURE] [-b BLOCK] [-a NAME]
+              [-r REPS] [-g PADJUST] [-i LOGLIKE] [-s START_COPIES]
+              [-l NOISE_THRESHOLD] [-f FLOOR] [-e MIN MAX] [-d MIN MAX]
+              [-u MIN MAX] [-k MIN MAX] [-m] [-x] [-z] [-v] [--version]
+              INPUT
 
 SONiCS - Stutter mONte Carlo Simulation Monte Carlo simulation of PCR based
 sequencing of Short Tandem Repeats with one or two alleles as a starting
@@ -113,7 +113,6 @@ adjusted p_value from Mann-Whitney U test, number of run repeats and called
 genotype.
 
 positional arguments:
-  PCR_CYCLES            Number of PCR cycles before introducing capture step.
   INPUT                 Either:allele composition - number of reads per
                         allele, example: all1|reads;all2|reads or path to a
                         VCF file if run with --vcf_mode option
@@ -137,6 +136,8 @@ optional arguments:
                         motif while parsing the VCF file. Options: 0 - pick on
                         random one of the closest alleles, 1 - exclude given
                         STR, 2 - exclude given genotype. Default: 1
+  -y PCR_CYCLES, --pcr_cycles PCR_CYCLES
+                        Number of PCR cycles before introducing capture step.
   -c AFTER_CAPTURE, --after_capture AFTER_CAPTURE
                         How many cycles of PCR amplification were performed
                         after introducing capture step. Default: 12
