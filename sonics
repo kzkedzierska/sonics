@@ -483,7 +483,6 @@ def main():
     parser.add_argument(
         "-e", "--efficiency",
         nargs=2,
-        action='append',
         default=(0.001, 0.1),
         metavar=('MIN', 'MAX'),
         type=float,
@@ -493,7 +492,6 @@ def main():
     parser.add_argument(
         "-d", "--down",
         nargs=2,
-        action='append',
         metavar=('MIN', 'MAX'),
         type=float,
         default=(0, 0.1),
@@ -503,7 +501,6 @@ def main():
     parser.add_argument(
         "-u", "--up",
         nargs=2,
-        action='append',
         metavar=('MIN', 'MAX'),
         type=float,
         default=(0, 0.1),
@@ -513,7 +510,6 @@ def main():
     parser.add_argument(
         "-k", "--capture",
         nargs=2,
-        action='append',
         default=(-0.25, 0.25),
         type=float,
         metavar=('MIN', 'MAX'),
