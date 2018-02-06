@@ -325,7 +325,9 @@ def process_one_genotype(input_tuple, constants, ranges, options):
         logging.warning(("Only one allele provided in input, "
                          "with read support above the threshold. "
                          "Including this genotype: %s "
-                         "for sample: %s in the output."), block, name)
+                         "for sample: %s in the output. "
+                         "The simulation won't be performed and "
+                         "likelihood won't be calculated."), block, name)
         with open(out_file_path, "a+") as out_file:
           out_file.write("{}\t{}\t{}\n".format(name, block, result))
         return
