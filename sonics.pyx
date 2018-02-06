@@ -25,11 +25,9 @@ def get_alleles(genot_input):
             pair = f.split("|")
             alleles[int(pair[0])] = int(pair[1])
     #alleles[alleles < max(alleles) * 0.01] = 0
-    if len(alleles.nonzero()[0]) < 2:
-        alleles = np.zeros(max_allele, dtype=DTYPE)
-
+    n_alleles = len(alleles.nonzero()[0])
     #logging.info(alleles)
-    return alleles, max_allele
+    return alleles, max_allele, n_alleles
 
 def generate_params(r, pref):
     """generates random parameters from given ranges"""
@@ -137,10 +135,10 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
 
         reps_round += 1
 
-    if all_simulation_params['verbose']:
-        results_pd_csv = pd.DataFrame.from_records(results, columns=results_colnames)
-        results_pd_csv.to_csv("{}_{}.txt".format(block, name),
-                              sep="\t", header=False, index=False)
+    # if all_simulation_params['verbose']:
+    #     results_pd_csv = pd.DataFrame.from_records(results, columns=results_colnames)
+    #     results_pd_csv.to_csv("{}_{}.txt".format(block, name),
+    #                           sep="\t", header=False, index=False)
 
     high_pval = high_pval if high_pval < 1 else 1
     not_zero = best_allele.log_like > -999999

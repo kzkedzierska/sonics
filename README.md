@@ -89,8 +89,9 @@ min_strs = max(1, min(alleles_in_input) - floor)
 usage: sonics [-h] [-o OUT_PATH] [-n FILE_NAME] [-p PROCESSES] [-t N]
               [-y PCR_CYCLES] [-c AFTER_CAPTURE] [-b BLOCK] [-a NAME]
               [-r REPS] [-g PADJUST] [-i LOGLIKE] [-s START_COPIES]
-              [-l NOISE_THRESHOLD] [-f FLOOR] [-e MIN MAX] [-d MIN MAX]
-              [-u MIN MAX] [-k MIN MAX] [-m] [-x] [-z] [-v] [--version]
+              [-l NOISE_THRESHOLD] [-f FLOOR] [-j ONE_ALLELE] [-e MIN MAX]
+              [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [-m] [-x] [-z] [-v]
+              [--version]
               INPUT
 
 SONiCS - Stutter mONte Carlo Simulation Monte Carlo simulation of PCR based
@@ -138,6 +139,7 @@ optional arguments:
                         STR, 2 - exclude given genotype. Default: 1
   -y PCR_CYCLES, --pcr_cycles PCR_CYCLES
                         Number of PCR cycles before introducing capture step.
+                        Default: 12
   -c AFTER_CAPTURE, --after_capture AFTER_CAPTURE
                         How many cycles of PCR amplification were performed
                         after introducing capture step. Default: 12
@@ -167,6 +169,9 @@ optional arguments:
                         the minimum number of STRs in a molecule for it to be
                         included in the simulations. If set to -1 minimum
                         number of STRs set to 1. Default: 5
+  -j ONE_ALLELE, --one_allele ONE_ALLELE
+                        Number of reads supporting only one allele for it to
+                        be included in the output. Default: 40
   -e MIN MAX, --efficiency MIN MAX
                         PCR efficiency before-after per cycle, i.e.
                         probability of the amplification. Default: (0.001,
