@@ -86,7 +86,17 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
 
         run_reps += reps
         #group by the initial genotype
-        results_colnames = ['ident', 'r_squared', 'log_like', 'genotype', 'noise_coef']
+        results_colnames = [
+            'ident', 
+            'r_squared', 
+            'log_like', 
+            'genotype', 
+            'noise_coef', 
+            'down', 
+            'up', 
+            'capture', 
+            'efficiency'
+        ]
         results_pd = pd.DataFrame.from_records(results, columns=results_colnames).groupby("genotype")
         #get the medians for log likelihoods in groups
         results_medians = results_pd.median().sort_values(by="log_like", ascending=False)
@@ -135,10 +145,11 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
 
         reps_round += 1
 
-    # if all_simulation_params['verbose']:
-    #     results_pd_csv = pd.DataFrame.from_records(results, columns=results_colnames)
-    #     results_pd_csv.to_csv("{}_{}.txt".format(block, name),
-    #                           sep="\t", header=False, index=False)
+    if all_simulation_params['save_report']:
+        results_pd_csv = pd.DataFrame.from_records(results, columns=results_colnames)
+        report_path = os.path.join(all_simulation_params['out_path'],
+                                   "{}_{}.txt".format(block, name))
+        results_pd_csv.to_csv(report_path, index=False, sep="\t")
 
     high_pval = high_pval if high_pval < 1 else 1
     not_zero = best_allele.log_like > -999999
@@ -269,6 +280,13 @@ def one_repeat(dict constants, tuple ranges,
     r_squared = rsq(alleles, readout)
 
     report = [identified, r_squared, loglike_a, initial, noise_coef]
+    prmtrs = [
+        parameters['down'], 
+        parameters['up'], 
+        parameters['capture'], 
+        parameters['efficiency']
+    ]
+    report.extend(prmtrs)
     return report
 
 

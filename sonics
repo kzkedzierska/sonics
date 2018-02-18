@@ -151,21 +151,17 @@ of run repeats and called genotype.
 """
 
 def run_sonics(feed_in, constants, ranges, sonics_run_options):
-    out_path = sonics_run_options['out_path']
-    file_name = sonics_run_options['file_name']
-
+    #check if dir exists, if not create
     try:
-        os.stat(out_path)
+        os.stat(sonics_run_options['out_path'])
     except FileNotFoundError:
-        os.mkdir(out_path)
+        os.mkdir(sonics_run_options['out_path'])
 
     #output file path
-    out_file_path = os.path.join(out_path, file_name)
+    out_file_path = os.path.join(sonics_run_options['out_path'], 
+                                 sonics_run_options['file_name'])
+    sonics_run_options['out_file_path'] = out_file_path
 
-    #options for processing one genotype
-    options = (sonics_run_options['repetitions'],
-               sonics_run_options['verbose'],
-               out_file_path)
 
     if sonics_run_options['vcf_mode']:
         #delete output file if exists
@@ -179,24 +175,26 @@ def run_sonics(feed_in, constants, ranges, sonics_run_options):
         if not parser_out:
             raise Exception("No valid genotype after parsing VCF file.")
 
-        if sonics_run_options['processes'] > 0:
+        if sonics_run_options['processes'] > 1:
             pool = Pool(sonics_run_options['processes'])
             pool.starmap(process_one_genotype, zip(parser_out,
                                                    repeat(constants),
                                                    repeat(ranges),
-                                                   repeat(options)))
+                                                   repeat(sonics_run_options)))
+
         else:
             list(map(process_one_genotype,
                      parser_out,
                      repeat(constants),
                      repeat(ranges),
-                     repeat(options)))
+                     repeat(sonics_run_options)))
 
     else:
         genotype = feed_in
         input_tuple = (
             sonics_run_options['name'],
             sonics_run_options['block'],
+            ".",
             genotype
         )
 
@@ -204,7 +202,7 @@ def run_sonics(feed_in, constants, ranges, sonics_run_options):
             input_tuple,
             constants,
             ranges,
-            options
+            sonics_run_options
         )
 
 def parse_vcf(file_path, strict=1):
@@ -247,6 +245,7 @@ def parse_vcf(file_path, strict=1):
                                  "in the 8th column."))
             try:
                 motif_length = len(regexp_motif.search(info_field).group(1))
+            
             except AttributeError:
                 raise Exception(("There's something wrong with the vcf file, "
                                  "expecting MOTIF in the INFO field "
@@ -299,14 +298,15 @@ def parse_vcf(file_path, strict=1):
                     "%i|%i" %(a, s) for a, s in zip(alleles, support) if s > 0
                 ]
                 genot = ";".join(genot_list)
-                genotypes_list.append((sample, block_name, genot))
+                genotypes_list.append((sample, block_name, ref, genot))
                 sample_ind += 1
     return genotypes_list
 
 def process_one_genotype(input_tuple, constants, ranges, options):
     """runs one Monte Carlo simulation"""
-    repetitions, verbose, out_file_path = options
-    name, block, genotype = input_tuple
+    #repetitions, verbose, out_file_path, out_path = options
+    out_file_path = options['out_file_path']
+    name, block, motif_seq, genotype = input_tuple
     alleles, constants['max_allele'], n_alleles = sonics.get_alleles(genotype)
     constants['genotype_total'] = sum(alleles)
 
@@ -350,24 +350,21 @@ def process_one_genotype(input_tuple, constants, ranges, options):
 
     logging.info("Initiating simulation for %s %s", name, block)
 
-    all_simulation_params = {
-        'verbose': verbose,
-        'block': block,
-        'name': name
-    }
+    options['block'] = block
+    options['name'] = name
 
     start = time.time()
     result = sonics.monte_carlo(
-        repetitions,
+        options['repetitions'],
         constants,
         ranges,
-        all_simulation_params
+        options
     )
     elapsed = time.time() - start
 
     logging.info(result)
     with open(out_file_path, "a+") as out_file:
-        out_file.write("{}\t{}\t{}\n".format(name, block, result))
+        out_file.write("{}\t{}\t{}\t{}\n".format(name, block, motif_seq, result))
 
     logging.debug("Monte Carlo simulation took: %f second(s)", elapsed)
 
@@ -568,6 +565,14 @@ def main():
               "is chosen based on the support information from input.")
     )
     parser.add_argument(
+        "--save_report",
+        action="store_true",
+        default=False,
+        help=("Save full report - including the parameters for each "
+              "simulation. The files will be named with block "
+              "and sample name, and stored in the output directory.")
+    )
+    parser.add_argument(
         "-z", "--up_preference",
         action="store_true",
         help=("Up-stutter doesn't have to be less probable than down stutter. "
@@ -636,7 +641,8 @@ def main():
         'name': args.name,
         'block': args.block,
         'processes': args.processes,
-        'verbose': verb
+        'verbose': verb,
+        'save_report' : args.save_report
     }
 
     run_sonics(
