@@ -90,8 +90,8 @@ usage: sonics [-h] [-o OUT_PATH] [-n FILE_NAME] [-p PROCESSES] [-t N]
               [-y PCR_CYCLES] [-c AFTER_CAPTURE] [-b BLOCK] [-a NAME]
               [-r REPS] [-g PADJUST] [-i LOGLIKE] [-s START_COPIES]
               [-l NOISE_THRESHOLD] [-f FLOOR] [-j ONE_ALLELE] [-e MIN MAX]
-              [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [-m] [-x] [-z] [-v]
-              [--version]
+              [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [-m] [-x] [--save_report]
+              [-z] [-v] [--version]
               INPUT
 
 SONiCS - Stutter mONte Carlo Simulation Monte Carlo simulation of PCR based
@@ -194,6 +194,9 @@ optional arguments:
                         input. Default: randomly select only one of the
                         alleles, the other is chosen based on the support
                         information from input.
+  --save_report         Save full report - including the parameters for each
+                        simulation. The files will be named with block and
+                        sample name, and stored in the output directory.
   -z, --up_preference   Up-stutter doesn't have to be less probable than down
                         stutter. Default: probability of down-stutter must be
                         higher than the probability of up-stutter.
