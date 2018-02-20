@@ -104,12 +104,15 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
         min_sim = results_pd.size().sort_values().iloc[0]
         #check for minimum number of simulations
         if min_sim > 25:
-            loglike_first = results_medians.iloc[0,2]
-            loglike_second = results_medians.iloc[1,2]
-            loglike_ratio = loglike_first - loglike_second
             #get the allele for which the median log likelihood is the highest
             highest_loglike = results_medians.index[0]
+            second_highest = results_medians.index[1]
             best_allele = results_pd.get_group(highest_loglike)
+            second_best = results_pd.get_group(second_highest)
+            # compare best likelihoods
+            loglike_first = best_allele.sort_values(by="log_like", ascending=False).iloc[0,2]
+            loglike_second = second_highest.sort_values(by="log_like", ascending=False).iloc[0,2]
+            loglike_ratio = loglike_first - loglike_second
             #get the set of other alleles
             other_alleles = set(results_medians.index) - set([highest_loglike])
             high_pval = 0
@@ -184,6 +187,7 @@ def rsq(np.ndarray true_values, np.ndarray pred_values):
     """Calculates the coefficient of determination between the truth (x) and
     prediction (y).
     """
+    
     true_mean = true_values.mean()
     ss_tot = sum([(i - true_mean) ** 2 for i in true_values])
     ss_tot = 1e-16 if ss_tot == 0 else ss_tot
@@ -253,6 +257,7 @@ def one_repeat(dict constants, tuple ranges,
         distribution is a hypergeometric distribution, not a binomial one.
         However, for N much larger than n, the binomial distribution 
         remains a good approximation, and is widely used. [Wikipedia]"""
+
         n_times = np.random.binomial(genotype_total, 
                                      PCR_products[allele] / PCR_total_molecules)
         allele_molecules = list(repeat(allele, n_times))
