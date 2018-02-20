@@ -16,7 +16,7 @@ __email__ = "kzk5f@virginia.edu"
 # FUNCTIONS RUN ONLY ONCE/TWICE PER GENOTYPE
 def get_alleles(genot_input):
     """get a dictionary with alleles as keys and number_of_reads as values
-    from the genotype ('allele1|#;allele2|#').
+    from the input readout ('allele1|#;allele2|#').
     """
     max_allele = 500
     alleles = np.zeros(max_allele, dtype=DTYPE)
@@ -142,8 +142,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
         #calculate additional repetitions
         reps = 4 * run_reps if reps_round % 2 == 1 else run_reps
 
-        """make sure that the number of reps does not exceed
-        the maximum number of reps"""
+        # make sure that the number of reps does not exceed the maximum 
         reps = max_n_reps - run_reps if reps + run_reps > max_n_reps else reps
 
         reps_round += 1
@@ -158,15 +157,27 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     not_zero = best_allele.log_like > -999999
     best_guess = best_allele[not_zero].sort_values("log_like", ascending=False).head(n=1)
 
-    if best_guess.empty or not successful:
+    if best_guess.empty:
         ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
             ".", 
             ".", 
-            results_medians['log_like'].head(n=1).item(),
-            loglike_ratio, 
-            high_pval, 
+            ".",
+            ".", 
+            ".", 
             run_reps, 
             "./."
+        )
+    elif not successful:
+        high_pval = high_pval if high_pval < padjust else "."
+        loglike_ratio = loglike_ratio if loglike_ratio > constants["loglike"] else "."
+        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+            best_guess["ident"].item(), #ident
+            best_guess["r_squared"].item(), #r2
+            results_medians["log_like"].head(n=1).item(), #median log_likelihood 
+            loglike_ratio, #ratio
+            high_pval, #highest p_value
+            run_reps, #repetitions
+            best_guess["genotype"].item() #genotype n_reps/n_reps
         )
     else:
         ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
@@ -227,7 +238,8 @@ def one_repeat(dict constants, tuple ranges,
         floor = floor if floor > 1 else 1
 
     if len(alleles.nonzero()[0]) == 1:
-            raise Exception("Less then two alleles as starting conditions! Aborting.")
+            raise Exception(("Less then two alleles as starting conditions!"
+                             " Aborting."))
 
     if constants['random']:
         first, second = tuple(np.random.choice(alleles.nonzero()[0], 2))
@@ -289,11 +301,11 @@ def one_repeat(dict constants, tuple ranges,
     
     # model statistics
     alleles_nonzero = alleles.nonzero()[0]
-    identified = ((sum([min(alleles[i], readout[i]) for i in alleles_nonzero]))
+    identity = ((sum([min(alleles[i], readout[i]) for i in alleles_nonzero]))
                   / genotype_total)
     r_squared = rsq(alleles, readout)
 
-    report = [identified, r_squared, loglike_a, initial, noise_coef]
+    report = [identity, r_squared, loglike_a, initial, noise_coef]
     prmtrs = [
         parameters['down'], 
         parameters['up'], 
