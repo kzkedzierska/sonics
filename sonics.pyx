@@ -187,7 +187,16 @@ def rsq(np.ndarray true_values, np.ndarray pred_values):
     """Calculates the coefficient of determination between the truth (x) and
     prediction (y).
     """
-    
+    fr = min(
+        true_values.nonzero()[0][0], 
+        pred_values.nonzero()[0][0]
+    )
+    to = 1 + max(
+        true_values.nonzero()[0][-1], 
+        pred_values.nonzero()[0][-1]
+    )
+    true_values = true_values[fr:to]
+    pred_values = pred_values[fr:to]
     true_mean = true_values.mean()
     ss_tot = sum([(i - true_mean) ** 2 for i in true_values])
     ss_tot = 1e-16 if ss_tot == 0 else ss_tot
