@@ -26,7 +26,7 @@ bash install.sh [PATH_TO_PYTHON3]
 
 ```bash
 #example run
-python3 sonics "8|9;9|20;10|24;12|1"
+python3 sonics "8|5;9|113;10|89"
 ```
 
 ## DESCRIPTION
@@ -42,9 +42,32 @@ Examples:
 * string genotype: "5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
 * VCF file (lorem_ipsum marks additional information that can be in the file but won't be used)
 
-```bash
+```
 #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  sample1    sample2    
 genotype1 1001    .       GTGTGTGTGTGTGTGTGTGT    GTGTGTGTGTGTGTGTGTGTGT  0       .       END=1020;MOTIF=GT;LOREM_IPSUM=1;REF=10;LOREM_IPSUM=9;LOREM_IPSUM=11 GT:ALLREADS:LOREM_IPSUM    1/1:-2|1;0|54;2|914;4|15:lorem_ipsum   0/0:-6|2;-4|22;-2|150;0|1215;2|11:lorem_ipsum  
+```
+
+### OUTPUT
+
+The output is saved to sonics_out.txt file in the output directory. It has the following columns: 
+* sample, block and reference for the locus; 
+* genotype called by sonics;
+* descriptors: identity, r^2 and log likelihood of the best model;
+* filter column - possible values:
+	*  PASS - all conditions are met;
+	*  no_simulations - SONiCS did not run simulations, only one allele in the input readout;
+	*  no_success - no simulation generated a PCR pool from which the input readout could be generated (this can happen with very noisy genotypes, increasing the noise ratio might help in those cases);
+	*  MWU_test - p-value from Mann-Whitney U test was above the threshold;
+	*  best_ratio - ratio of the best log-likelihoods from two best genotypes was below the threshold;
+	*  median_ratio - ratio of the median log-likelihoods from two best genotypes was below the threshold.
+* highest p-value from Mann-Whitney U test;
+* ratio between best log-likelihood of the two best genotypes;
+* ratio between median log-likelihood of the two best genotypes;
+* number of run repetitions.
+
+```
+sample	block	ref	genotype	identity	r_squared	loglike	filter  MWUtes_pval	best_loglike_ratio	median_loglike_ratio	repeats
+sampleXYZ	Block1123	10	9/10	0.9468599033816425	0.9814051389694214	-7.237363721709698	PASS	1.0160723016481089e-09	61.18653004406974	100.01767209208629	100
 ```
 
 ### MODES

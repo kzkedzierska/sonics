@@ -43,8 +43,8 @@ fi
 "$PATH_TO_PYTHON3" setup.py build_ext --inplace
 
 #run test 
-echo "Running test on support read out: 8|9;9|20;10|24;12|1"
-"$PATH_TO_PYTHON3" sonics "8|9;9|20;10|24;12|1"
+echo "Running test on support read out: 8|5;9|113;10|89"
+"$PATH_TO_PYTHON3" sonics "8|5;9|113;10|89"
 
 if [ $? == 0 ]; then
     echo "Everything seems to be working all right."

@@ -16,7 +16,7 @@ __email__ = "kzk5f@virginia.edu"
 # FUNCTIONS RUN ONLY ONCE/TWICE PER GENOTYPE
 def get_alleles(genot_input):
     """get a dictionary with alleles as keys and number_of_reads as values
-    from the genotype ('allele1|#;allele2|#').
+    from the input readout ('allele1|#;allele2|#').
     """
     max_allele = 500
     alleles = np.zeros(max_allele, dtype=DTYPE)
@@ -104,12 +104,19 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
         min_sim = results_pd.size().sort_values().iloc[0]
         #check for minimum number of simulations
         if min_sim > 25:
-            loglike_first = results_medians.iloc[0,2]
-            loglike_second = results_medians.iloc[1,2]
-            loglike_ratio = loglike_first - loglike_second
             #get the allele for which the median log likelihood is the highest
             highest_loglike = results_medians.index[0]
+            second_highest = results_medians.index[1]
             best_allele = results_pd.get_group(highest_loglike)
+            second_best = results_pd.get_group(second_highest)
+            # compare best likelihoods
+            best_loglike_first = best_allele.sort_values(by="log_like", ascending=False).iloc[0,2]
+            best_loglike_second = second_best.sort_values(by="log_like", ascending=False).iloc[0,2]
+            best_loglike_ratio = best_loglike_first - best_loglike_second
+            #compare median likelihoods 
+            median_loglike_first = results_medians.iloc[0,2]
+            median_loglike_second = results_medians.iloc[1,2]
+            median_loglike_ratio = median_loglike_first - median_loglike_second
             #get the set of other alleles
             other_alleles = set(results_medians.index) - set([highest_loglike])
             high_pval = 0
@@ -131,7 +138,11 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             #Bonferroni correction in its essence
             high_pval *= n_tests
             #check if p_value threshold is satisfied
-            if high_pval < padjust and loglike_ratio > constants["loglike"]:
+            if (
+                high_pval < padjust and 
+                median_loglike_ratio > constants["loglike"] and
+                best_loglike_ratio > constants["loglike"]
+            ):
                 successful = True
                 logging.debug("Will break! P-value: {}".format(high_pval))
                 break
@@ -139,8 +150,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
         #calculate additional repetitions
         reps = 4 * run_reps if reps_round % 2 == 1 else run_reps
 
-        """make sure that the number of reps does not exceed
-        the maximum number of reps"""
+        # make sure that the number of reps does not exceed the maximum 
         reps = max_n_reps - run_reps if reps + run_reps > max_n_reps else reps
 
         reps_round += 1
@@ -155,25 +165,42 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     not_zero = best_allele.log_like > -999999
     best_guess = best_allele[not_zero].sort_values("log_like", ascending=False).head(n=1)
 
-    if best_guess.empty or not successful:
-        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-            ".", 
-            ".", 
-            results_medians['log_like'].head(n=1).item(),
-            loglike_ratio, 
-            high_pval, 
-            run_reps, 
-            "./."
+    if best_guess.empty:
+        filt = "no_success"
+        #this can happen if there is noise from very distant alleles
+        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+            "./.", #genotype
+            ".", #identity
+            ".", #r^2
+            ".", #log_like
+            filt, #FILTER
+            ".", #Mann-Whitney U test, p_val
+            ".", #best loglike
+            ".", #median loglike
+            run_reps #reps
         )
+        return ret
+
+    if not successful:
+        conditions = [
+            "MWU_test" if high_pval > padjust else "",
+            "best_ratio" if best_loglike_ratio < constants["loglike"] else "",
+            "median_ratio" if median_loglike_ratio < constants["loglike"] else ""
+        ]
+        filt = ",".join([cond for cond in conditions if cond != ""])
     else:
-        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-            best_guess["ident"].item(), #ident
-            best_guess["r_squared"].item(), #r2
-            results_medians["log_like"].head(n=1).item(), #median log_likelihood 
-            loglike_ratio, #ratio
+        filt = "PASS"
+
+    ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+            best_guess["genotype"].item(), #genotype n_reps/n_reps
+            best_guess["ident"].item(), #identity
+            best_guess["r_squared"].item(), #r^2
+            best_guess["log_like"].item(), #median log_likelihood 
+            filt, #FILTER
             high_pval, #highest p_value
-            run_reps, #repetitions
-            best_guess["genotype"].item() #genotype n_reps/n_reps
+            best_loglike_ratio, #best loglikelihood ratio
+            median_loglike_ratio, #median loglikelihood ratio
+            run_reps #repetitions
         )
 
     return ret
@@ -184,6 +211,16 @@ def rsq(np.ndarray true_values, np.ndarray pred_values):
     """Calculates the coefficient of determination between the truth (x) and
     prediction (y).
     """
+    fr = min(
+        true_values.nonzero()[0][0], 
+        pred_values.nonzero()[0][0]
+    )
+    to = 1 + max(
+        true_values.nonzero()[0][-1], 
+        pred_values.nonzero()[0][-1]
+    )
+    true_values = true_values[fr:to]
+    pred_values = pred_values[fr:to]
     true_mean = true_values.mean()
     ss_tot = sum([(i - true_mean) ** 2 for i in true_values])
     ss_tot = 1e-16 if ss_tot == 0 else ss_tot
@@ -214,7 +251,8 @@ def one_repeat(dict constants, tuple ranges,
         floor = floor if floor > 1 else 1
 
     if len(alleles.nonzero()[0]) == 1:
-            raise Exception("Less then two alleles as starting conditions! Aborting.")
+            raise Exception(("Less then two alleles as starting conditions!"
+                             " Aborting."))
 
     if constants['random']:
         first, second = tuple(np.random.choice(alleles.nonzero()[0], 2))
@@ -253,6 +291,7 @@ def one_repeat(dict constants, tuple ranges,
         distribution is a hypergeometric distribution, not a binomial one.
         However, for N much larger than n, the binomial distribution 
         remains a good approximation, and is widely used. [Wikipedia]"""
+
         n_times = np.random.binomial(genotype_total, 
                                      PCR_products[allele] / PCR_total_molecules)
         allele_molecules = list(repeat(allele, n_times))
@@ -275,11 +314,17 @@ def one_repeat(dict constants, tuple ranges,
     
     # model statistics
     alleles_nonzero = alleles.nonzero()[0]
-    identified = ((sum([min(alleles[i], readout[i]) for i in alleles_nonzero]))
-                  / genotype_total)
-    r_squared = rsq(alleles, readout)
+    if alleles_nonzero.size == 0:
+        #this happens if the input genotype is very small
+        #basically the fragments did not get sequenced
+        identity = 0
+        r_squared = -999999
+    else:
+        identity = ((sum([min(alleles[i], readout[i]) for i in alleles_nonzero]))
+                      / genotype_total)
+        r_squared = rsq(alleles, readout)
 
-    report = [identified, r_squared, loglike_a, initial, noise_coef]
+    report = [identity, r_squared, loglike_a, initial, noise_coef]
     prmtrs = [
         parameters['down'], 
         parameters['up'], 
