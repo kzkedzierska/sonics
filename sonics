@@ -165,13 +165,25 @@ def run_sonics(feed_in, constants, ranges, sonics_run_options):
                                  sonics_run_options['file_name'])
     sonics_run_options['out_file_path'] = out_file_path
 
+    #Write header to the file
+    with open(out_file_path, "w+") as out_file:
+        out_file.write(
+          "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+            "sample",
+            "block",
+            "ref",
+            "genotype",
+            "identity",
+            "r_squared",
+            "loglike",
+            "filter",
+            "MWUtes_pval",
+            "best_loglike_ratio",
+            "median_loglike_ratio",
+            "repeats")
+        )
 
     if sonics_run_options['vcf_mode']:
-        #delete output file if exists
-        try:
-            os.remove(out_file_path)
-        except OSError:
-            pass
 
         parser_out = parse_vcf(feed_in, sonics_run_options['strict'])
 
@@ -309,7 +321,7 @@ def process_one_genotype(input_tuple, constants, ranges, options):
     """runs one Monte Carlo simulation"""
     #repetitions, verbose, out_file_path, out_path = options
     out_file_path = options['out_file_path']
-    name, block, motif_seq, genotype = input_tuple
+    name, block, ref, genotype = input_tuple
     alleles, constants['max_allele'], n_alleles = sonics.get_alleles(genotype)
     constants['genotype_total'] = sum(alleles)
 
@@ -323,11 +335,19 @@ def process_one_genotype(input_tuple, constants, ranges, options):
     elif n_alleles == 1:
       if constants['genotype_total'] > constants['one_allele_threshold']:
         one_allele = alleles.nonzero()[0][0]
-        result = "{}\t.\t.\t.\t.\t.\t0\t{}/{}".format(
-          motif_seq, 
-          one_allele, 
-          one_allele
-          )
+        filt = "no_simulations"
+        #this can happen if there is noise from very distant alleles
+        result = "{}/{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+            one_allele, one_allele, #genotype
+            ".", #identity
+            ".", #r^2
+            ".", #log_like
+            filt, #FILTER
+            ".", #Mann-Whitney U test, p_val
+            ".", #best loglike
+            ".", #median loglike
+            0 #reps
+        )
         logging.debug(result)
         logging.warning(("Only one allele provided in input, "
                          "with read support above the threshold. "
@@ -335,8 +355,9 @@ def process_one_genotype(input_tuple, constants, ranges, options):
                          "for sample: %s in the output. "
                          "The simulation won't be performed and "
                          "likelihood won't be calculated."), block, name)
+        logging.info(result)
         with open(out_file_path, "a+") as out_file:
-          out_file.write("{}\t{}\t{}\n".format(name, block, result))
+          out_file.write("{}\t{}\t{}\t{}\n".format(name, block, ref, result))
         return
       else:
         logging.warning(("Only one allele provided in input, "
@@ -371,7 +392,7 @@ def process_one_genotype(input_tuple, constants, ranges, options):
 
     logging.info(result)
     with open(out_file_path, "a+") as out_file:
-        out_file.write("{}\t{}\t{}\t{}\n".format(name, block, motif_seq, result))
+        out_file.write("{}\t{}\t{}\t{}\n".format(name, block, ref, result))
 
     logging.debug("Monte Carlo simulation took: %f second(s)", elapsed)
 

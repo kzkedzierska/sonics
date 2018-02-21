@@ -110,9 +110,13 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             best_allele = results_pd.get_group(highest_loglike)
             second_best = results_pd.get_group(second_highest)
             # compare best likelihoods
-            loglike_first = best_allele.sort_values(by="log_like", ascending=False).iloc[0,2]
-            loglike_second = second_highest.sort_values(by="log_like", ascending=False).iloc[0,2]
-            loglike_ratio = loglike_first - loglike_second
+            best_loglike_first = best_allele.sort_values(by="log_like", ascending=False).iloc[0,2]
+            best_loglike_second = second_best.sort_values(by="log_like", ascending=False).iloc[0,2]
+            best_loglike_ratio = best_loglike_first - best_loglike_second
+            #compare median likelihoods 
+            median_loglike_first = results_medians.iloc[0,2]
+            median_loglike_second = results_medians.iloc[1,2]
+            median_loglike_ratio = median_loglike_first - median_loglike_second
             #get the set of other alleles
             other_alleles = set(results_medians.index) - set([highest_loglike])
             high_pval = 0
@@ -134,7 +138,11 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             #Bonferroni correction in its essence
             high_pval *= n_tests
             #check if p_value threshold is satisfied
-            if high_pval < padjust and loglike_ratio > constants["loglike"]:
+            if (
+                high_pval < padjust and 
+                median_loglike_ratio > constants["loglike"] and
+                best_loglike_ratio > constants["loglike"]
+            ):
                 successful = True
                 logging.debug("Will break! P-value: {}".format(high_pval))
                 break
@@ -158,36 +166,41 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     best_guess = best_allele[not_zero].sort_values("log_like", ascending=False).head(n=1)
 
     if best_guess.empty:
-        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-            ".", 
-            ".", 
-            ".",
-            ".", 
-            ".", 
-            run_reps, 
-            "./."
+        filt = "no_success"
+        #this can happen if there is noise from very distant alleles
+        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+            "./.", #genotype
+            ".", #identity
+            ".", #r^2
+            ".", #log_like
+            filt, #FILTER
+            ".", #Mann-Whitney U test, p_val
+            ".", #best loglike
+            ".", #median loglike
+            run_reps #reps
         )
-    elif not successful:
-        high_pval = high_pval if high_pval < padjust else "."
-        loglike_ratio = loglike_ratio if loglike_ratio > constants["loglike"] else "."
-        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-            best_guess["ident"].item(), #ident
-            best_guess["r_squared"].item(), #r2
-            results_medians["log_like"].head(n=1).item(), #median log_likelihood 
-            loglike_ratio, #ratio
-            high_pval, #highest p_value
-            run_reps, #repetitions
-            best_guess["genotype"].item() #genotype n_reps/n_reps
-        )
+        return ret
+
+    if not successful:
+        conditions = [
+            "MWU_test" if high_pval > padjust else "",
+            "best_ratio" if best_loglike_ratio < constants["loglike"] else "",
+            "median_ratio" if median_loglike_ratio < constants["loglike"] else ""
+        ]
+        filt = ",".join([cond for cond in conditions if cond != ""])
     else:
-        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-            best_guess["ident"].item(), #ident
-            best_guess["r_squared"].item(), #r2
-            results_medians["log_like"].head(n=1).item(), #median log_likelihood 
-            loglike_ratio, #ratio
+        filt = "PASS"
+
+    ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+            best_guess["genotype"].item(), #genotype n_reps/n_reps
+            best_guess["ident"].item(), #identity
+            best_guess["r_squared"].item(), #r^2
+            best_guess["log_like"].item(), #median log_likelihood 
+            filt, #FILTER
             high_pval, #highest p_value
-            run_reps, #repetitions
-            best_guess["genotype"].item() #genotype n_reps/n_reps
+            best_loglike_ratio, #best loglikelihood ratio
+            median_loglike_ratio, #median loglikelihood ratio
+            run_reps #repetitions
         )
 
     return ret
@@ -301,9 +314,15 @@ def one_repeat(dict constants, tuple ranges,
     
     # model statistics
     alleles_nonzero = alleles.nonzero()[0]
-    identity = ((sum([min(alleles[i], readout[i]) for i in alleles_nonzero]))
-                  / genotype_total)
-    r_squared = rsq(alleles, readout)
+    if alleles_nonzero.size == 0:
+        #this happens if the input genotype is very small
+        #basically the fragments did not get sequenced
+        identity = 0
+        r_squared = -999999
+    else:
+        identity = ((sum([min(alleles[i], readout[i]) for i in alleles_nonzero]))
+                      / genotype_total)
+        r_squared = rsq(alleles, readout)
 
     report = [identity, r_squared, loglike_a, initial, noise_coef]
     prmtrs = [
