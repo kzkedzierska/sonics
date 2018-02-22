@@ -314,7 +314,7 @@ def one_repeat(dict constants, tuple ranges,
     
     # model statistics
     alleles_nonzero = alleles.nonzero()[0]
-    if alleles_nonzero.size == 0:
+    if readout.nonzero()[0].size == 0:
         #this happens if the input genotype is very small
         #basically the fragments did not get sequenced
         identity = 0
