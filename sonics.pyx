@@ -73,7 +73,11 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     results = list()
     run_reps = 0
     reps_round = 1
-    reps = 100 if max_n_reps > 100 else max_n_reps
+
+    if all_simulation_params['monte_carlo']:
+        reps = max_n_reps
+    else: 
+        reps = 100 if max_n_reps > 100 else max_n_reps
 
     while run_reps < max_n_reps:
 
