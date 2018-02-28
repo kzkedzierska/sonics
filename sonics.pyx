@@ -168,7 +168,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     if best_guess.empty:
         filt = "no_success"
         #this can happen if there is noise from very distant alleles
-        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
             "./.", #genotype
             ".", #identity
             ".", #r^2
