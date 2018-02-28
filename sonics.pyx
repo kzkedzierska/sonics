@@ -97,9 +97,40 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             'capture', 
             'efficiency'
         ]
-        results_pd = pd.DataFrame.from_records(results, columns=results_colnames).groupby("genotype")
+        results_pd = pd.DataFrame.from_records(results, 
+                                               columns=results_colnames)
+
+        if all_simulation_params['monte_carlo']:
+            if all_simulation_params['save_report']:
+                report_path = os.path.join(all_simulation_params['out_path'],
+                                           "{}_{}.txt".format(block, name))
+                results_pd.to_csv(report_path, index=False, sep="\t")
+
+            best_guess = results_pd.sort_values(by="log_like", 
+                                                ascending=False).head(n=1)
+            genotype = best_guess["genotype"].item()
+
+            genotype_pd = results_pd.groupby("genotype").get_group(genotype)
+            quantiles = genotype_pd.quantile(0.75)
+
+            ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+            genotype, #genotype n_reps/n_reps
+            best_guess["ident"].item(), #identity
+            quantiles["ident"].item(), #identity quantile
+            best_guess["r_squared"].item(), #r^2
+            quantiles["r_squared"].item(), #r^2 quantile
+            best_guess["log_like"].item(), #log_likelihood 
+            quantiles["log_like"].item(), #log_like quantile
+            run_reps #repetitions
+            )
+
+            return ret
+
+        results_pd = results_pd.groupby("genotype")
+
         #get the medians for log likelihoods in groups
-        results_medians = results_pd.median().sort_values(by="log_like", ascending=False)
+        results_medians = results_pd.median().sort_values(by="log_like", 
+                                                          ascending=False)
         #check what's the minimum of simulations per genotype
         min_sim = results_pd.size().sort_values().iloc[0]
         #check for minimum number of simulations
@@ -110,8 +141,10 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             best_allele = results_pd.get_group(highest_loglike)
             second_best = results_pd.get_group(second_highest)
             # compare best likelihoods
-            best_loglike_first = best_allele.sort_values(by="log_like", ascending=False).iloc[0,2]
-            best_loglike_second = second_best.sort_values(by="log_like", ascending=False).iloc[0,2]
+            best_loglike_first = best_allele.sort_values(by="log_like", 
+                                                         ascending=False).iloc[0,2]
+            best_loglike_second = second_best.sort_values(by="log_like", 
+                                                          ascending=False).iloc[0,2]
             best_loglike_ratio = best_loglike_first - best_loglike_second
             #compare median likelihoods 
             median_loglike_first = results_medians.iloc[0,2]
@@ -156,14 +189,16 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
         reps_round += 1
 
     if all_simulation_params['save_report']:
-        results_pd_csv = pd.DataFrame.from_records(results, columns=results_colnames)
+        results_pd_csv = pd.DataFrame.from_records(results, 
+                                                   columns=results_colnames)
         report_path = os.path.join(all_simulation_params['out_path'],
                                    "{}_{}.txt".format(block, name))
         results_pd_csv.to_csv(report_path, index=False, sep="\t")
 
     high_pval = high_pval if high_pval < 1 else 1
     not_zero = best_allele.log_like > -999999
-    best_guess = best_allele[not_zero].sort_values("log_like", ascending=False).head(n=1)
+    best_guess = best_allele[not_zero].sort_values("log_like", 
+                                                   ascending=False).head(n=1)
 
     if best_guess.empty:
         filt = "no_success"

@@ -586,6 +586,13 @@ def main():
               "starting with 10th. Default: string mode.")
     )
     parser.add_argument(
+        "--monte_carlo",
+        action="store_true",
+        default=False,
+        help=("Run SONiCS in Monte Carlo mode. "
+              "Increased number of repetitions recommended")
+    )
+    parser.add_argument(
         "-x", "--random",
         action="store_true",
         help=("Randomly select alleles for simulations from the input. "
@@ -670,7 +677,8 @@ def main():
         'block': args.block,
         'processes': args.processes,
         'verbose': verb,
-        'save_report' : args.save_report
+        'save_report' : args.save_report,
+        'monte_carlo': args.monte_carlo
     }
 
     run_sonics(
