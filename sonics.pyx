@@ -249,9 +249,9 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
                     best_allele = best_allele_max
 
                     if (
-                        high_pval_max < padjust or 
-                        median_loglike_ratio_max > loglike_threshold or
-                        best_loglike_ratio_max > loglike_threshold
+                        high_pval < padjust and 
+                        median_loglike_ratio > loglike_threshold and
+                        best_loglike_ratio > loglike_threshold
                     ):
                         successful = True
                         logging.debug("Will break! P-value: {}".format(high_pval))
@@ -272,12 +272,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
                                    "{}_{}.txt".format(block, name))
         results_pd_csv.to_csv(report_path, index=False, sep="\t")
 
-    high_pval = high_pval if high_pval < 1 else 1
-    not_zero = best_allele.log_like > -999999
-    best_guess = best_allele[not_zero].sort_values("log_like", 
-                                                   ascending=False).head(n=1)
-
-    if best_guess.empty:
+    if min_sim < 25:
         filt = "no_success"
         #this can happen if there is noise from very distant alleles
         ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
@@ -292,16 +287,20 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             run_reps #reps
         )
         return ret
+        
+    high_pval = high_pval if high_pval < 1 else 1
+    best_guess = best_allele.sort_values("log_like", 
+                                         ascending=False).head(n=1)
 
-    if not successful:
+    if successful:
+        filt = "PASS"
+    else:
         conditions = [
             "MWU_test" if high_pval > padjust else "",
             "best_ratio" if best_loglike_ratio < constants["loglike"] else "",
             "median_ratio" if median_loglike_ratio < constants["loglike"] else ""
         ]
         filt = ",".join([cond for cond in conditions if cond != ""])
-    else:
-        filt = "PASS"
 
     ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
             best_guess["genotype"].item(), #genotype n_reps/n_reps
