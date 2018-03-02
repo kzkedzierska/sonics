@@ -64,6 +64,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     every 100, 500, 1000, 5000 etc. repetitions.
     """
     padjust = constants["padjust"]
+    loglike_threshold = constants["loglike"]
     block = all_simulation_params['block']
     name = all_simulation_params['name']
     successful = False
@@ -114,7 +115,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
                                                 ascending=False).head(n=1)
             genotype = best_guess["genotype"].item()
 
-            genotype_pd = results_pd.groupby("genotype").get_group(genotype)
+            genotype_pd = results_pd.groupby("genotype", as_index=False).get_group(genotype)
             quantiles = genotype_pd.quantile(0.75)
 
             ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
@@ -130,32 +131,38 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
 
             return ret
 
-        results_pd = results_pd.groupby("genotype")
+        results_pd_succ = results_pd[results_pd.log_like > -999999].groupby("genotype")
 
-        #get the medians for log likelihoods in groups
-        results_medians = results_pd.median().sort_values(by="log_like", 
-                                                          ascending=False)
+        results_pd = results_pd.groupby("genotype", as_index=False)
+        # print(results_pd.head(n=2))
+
         #check what's the minimum of simulations per genotype
-        min_sim = results_pd.size().sort_values().iloc[0]
+        min_sim = results_pd_succ.size().sort_values().iloc[0]
         #check for minimum number of simulations
         if min_sim > 25:
+            #get the medians for log likelihoods in groups
+            results_medians = results_pd.median().sort_values(by="log_like", 
+                                                              ascending=False)
+
             #get the allele for which the median log likelihood is the highest
-            highest_loglike = results_medians.index[0]
-            second_highest = results_medians.index[1]
-            best_allele = results_pd.get_group(highest_loglike)
-            second_best = results_pd.get_group(second_highest)
+            highest_loglike_median = results_medians['genotype'].iloc[0]
+            second_highest_median = results_medians['genotype'].iloc[1]
+            best_allele = results_pd.get_group(highest_loglike_median)
+            # print(highest_loglike_median)
+            # print(best_allele.head(n=2))
+            second_best = results_pd.get_group(second_highest_median)
             # compare best likelihoods
             best_loglike_first = best_allele.sort_values(by="log_like", 
-                                                         ascending=False).iloc[0,2]
+                                                         ascending=False)['log_like'].iloc[0]
             best_loglike_second = second_best.sort_values(by="log_like", 
-                                                          ascending=False).iloc[0,2]
+                                                          ascending=False)['log_like'].iloc[0]
             best_loglike_ratio = best_loglike_first - best_loglike_second
             #compare median likelihoods 
-            median_loglike_first = results_medians.iloc[0,2]
-            median_loglike_second = results_medians.iloc[1,2]
+            median_loglike_first = results_medians['log_like'].iloc[0]
+            median_loglike_second = results_medians['log_like'].iloc[1]
             median_loglike_ratio = median_loglike_first - median_loglike_second
             #get the set of other alleles
-            other_alleles = set(results_medians.index) - set([highest_loglike])
+            other_alleles = set(results_medians.genotype) - set([highest_loglike_median])
             high_pval = 0
             n_tests = 0
             for b in other_alleles:
@@ -175,14 +182,80 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             #Bonferroni correction in its essence
             high_pval *= n_tests
             #check if p_value threshold is satisfied
-            if (
-                high_pval < padjust and 
-                median_loglike_ratio > constants["loglike"] and
-                best_loglike_ratio > constants["loglike"]
-            ):
-                successful = True
-                logging.debug("Will break! P-value: {}".format(high_pval))
-                break
+            #get the medians for log likelihoods in groups
+            results_maxs = results_pd.max().sort_values(by="log_like", 
+                                                        ascending=False)
+            highest_loglike_max = results_maxs['genotype'].iloc[0]
+
+            if highest_loglike_max == highest_loglike_median:
+                if (
+                    high_pval < padjust and 
+                    median_loglike_ratio > loglike_threshold and
+                    best_loglike_ratio > loglike_threshold
+                ):
+                    successful = True
+                    logging.debug("Will break! P-value: {}".format(high_pval))
+                    break
+
+            else:
+                #TEST BEST NOW
+                second_highest_max = results_maxs['genotype'].iloc[1]
+                best_allele_max = results_pd.get_group(highest_loglike_max)
+                # print(best_allele_max.head(n=2))
+                second_best_max = results_pd.get_group(second_highest_max)
+                # compare best likelihoods
+                best_loglike_first_max = results_maxs['log_like'].iloc[0]
+                best_loglike_second_max = results_maxs['log_like'].iloc[1]
+                best_loglike_ratio_max = best_loglike_first_max - best_loglike_second_max
+                #compare median likelihoods 
+                median_loglike_first_max = best_allele_max.median()['log_like']
+                median_loglike_second_max = second_best_max.median()['log_like']
+                median_loglike_ratio_max = median_loglike_first_max - median_loglike_second_max
+                #get the set of other alleles
+                other_alleles = set(results_maxs.genotype) - set([highest_loglike_max])
+                high_pval_max = 0
+                for b in other_alleles:
+                    try:
+                        stat, pval = mannwhitneyu(
+                            best_allele.iloc[:,2],
+                            results_pd.get_group(b).iloc[:,2],
+                            alternative="greater"
+                        )
+
+                        high_pval = max(pval, high_pval_max)
+                    except ValueError:
+                        high_pval_max = 1
+
+                #Bonferroni correction in its essence
+                high_pval_max *= n_tests
+
+                if (
+                    high_pval < padjust and 
+                    median_loglike_ratio > loglike_threshold and
+                    best_loglike_ratio > loglike_threshold
+                ):
+                    if (
+                        high_pval_max > padjust or 
+                        median_loglike_ratio_max < loglike_threshold or
+                        best_loglike_ratio_max < loglike_threshold
+                    ):
+                        successful = True
+                        logging.debug("Will break! P-value: {}".format(high_pval))
+                        break
+                else:
+                    high_pval = high_pval_max
+                    median_loglike_ratio = median_loglike_ratio_max
+                    best_loglike_ratio = best_loglike_ratio_max
+                    best_allele = best_allele_max
+
+                    if (
+                        high_pval_max < padjust or 
+                        median_loglike_ratio_max > loglike_threshold or
+                        best_loglike_ratio_max > loglike_threshold
+                    ):
+                        successful = True
+                        logging.debug("Will break! P-value: {}".format(high_pval))
+                        break
 
         #calculate additional repetitions
         reps = 4 * run_reps if reps_round % 2 == 1 else run_reps
