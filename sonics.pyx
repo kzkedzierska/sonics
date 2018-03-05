@@ -22,8 +22,9 @@ def get_alleles(genot_input):
     alleles = np.zeros(max_allele, dtype=DTYPE)
     for f in genot_input.split(';'):
         if f != "":
-            pair = f.split("|")
-            alleles[int(pair[0])] = int(pair[1])
+            pair = [int(x) for x in f.split("|")]
+            if pair[0] > 0:
+                alleles[pair[0]] = pair[1]
     #alleles[alleles < max(alleles) * 0.01] = 0
     n_alleles = len(alleles.nonzero()[0])
     #logging.info(alleles)
@@ -43,7 +44,7 @@ def generate_params(r, pref):
 
     return {'down': d, 'up': u, 'capture': c, 'efficiency': p}
 
-def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
+def monte_carlo(max_n_reps, constants, ranges, options):
     """Runs Monte Carlo simulation of the PCR amplification until
     p_value threshold for the Mann Whitney test is reached or
     the number of repetition reaches the maximum.
@@ -52,7 +53,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     max_n_reps -- upper limit for number of repetitions run
     constants -- constants throughout the simulations
     ranges -- ranges for generation PCR simulation specific parameters
-    all_simulation_params -- parameters shared throughout all simulations
+    options -- parameters shared throughout all simulations
     Scheme:
     1) Run the first n repetitions.
     2) Calculate the highest p value for all the comparisons between
@@ -64,9 +65,9 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     every 100, 500, 1000, 5000 etc. repetitions.
     """
     padjust = constants["padjust"]
-    loglike_threshold = constants["loglike"]
-    block = all_simulation_params['block']
-    name = all_simulation_params['name']
+    lnL_threshold = constants["lnL_threshold"]
+    block = options['block']
+    name = options['name']
     successful = False
     """successful - parameter that helps distinguish between
     the simulations needing more repetitions and the ones
@@ -75,7 +76,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
     run_reps = 0
     reps_round = 1
 
-    if all_simulation_params['monte_carlo']:
+    if options['monte_carlo']:
         reps = max_n_reps
     else: 
         reps = 100 if max_n_reps > 100 else max_n_reps
@@ -94,7 +95,7 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
         results_colnames = [
             'ident', 
             'r_squared', 
-            'log_like', 
+            'lnL', 
             'genotype', 
             'noise_coef', 
             'down', 
@@ -105,33 +106,34 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
         results_pd = pd.DataFrame.from_records(results, 
                                                columns=results_colnames)
 
-        if all_simulation_params['monte_carlo']:
-            if all_simulation_params['save_report']:
-                report_path = os.path.join(all_simulation_params['out_path'],
+        if options['monte_carlo']:
+            if options['save_report']:
+                report_path = os.path.join(options['out_path'],
                                            "{}_{}.txt".format(block, name))
                 results_pd.to_csv(report_path, index=False, sep="\t")
 
-            best_guess = results_pd.sort_values(by="log_like", 
+            best_guess = results_pd.sort_values(by="lnL", 
                                                 ascending=False).head(n=1)
             genotype = best_guess["genotype"].item()
 
             genotype_pd = results_pd.groupby("genotype", as_index=False).get_group(genotype)
             quantiles = genotype_pd.quantile(0.75)
 
-            ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-            genotype, #genotype n_reps/n_reps
-            best_guess["ident"].item(), #identity
-            quantiles["ident"].item(), #identity quantile
-            best_guess["r_squared"].item(), #r^2
-            quantiles["r_squared"].item(), #r^2 quantile
-            best_guess["log_like"].item(), #log_likelihood 
-            quantiles["log_like"].item(), #log_like quantile
-            run_reps #repetitions
-            )
+            ret_list = [
+                genotype, #genotype n_reps/n_reps
+                best_guess["ident"].item(), #identity
+                quantiles["ident"].item(), #identity quantile
+                best_guess["r_squared"].item(), #r^2
+                quantiles["r_squared"].item(), #r^2 quantile
+                best_guess["lnL"].item(), #lnLlihood 
+                quantiles["lnL"].item(), #lnL quantile
+                run_reps #repetitions
+            ]
+            ret = "\t".join([str(element) for element in ret_list])
 
             return ret
 
-        results_pd_succ = results_pd[results_pd.log_like > -999999].groupby("genotype")
+        results_pd_succ = results_pd[results_pd.lnL > -999999].groupby("genotype")
 
         results_pd = results_pd.groupby("genotype", as_index=False)
         # print(results_pd.head(n=2))
@@ -139,30 +141,28 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
         #check what's the minimum of simulations per genotype
         min_sim = results_pd_succ.size().sort_values().iloc[0]
         #check for minimum number of simulations
-        if min_sim > 25:
+        if min_sim >= 25:
             #get the medians for log likelihoods in groups
-            results_medians = results_pd.median().sort_values(by="log_like", 
-                                                              ascending=False)
+            results_maxs = results_pd.max().sort_values(by="lnL", 
+                                                        ascending=False)
+            #get top two alleles
+            allele_highest_lnL = results_maxs['genotype'].iloc[0]
+            allele_second_lnL = results_maxs['genotype'].iloc[1]
 
-            #get the allele for which the median log likelihood is the highest
-            highest_loglike_median = results_medians['genotype'].iloc[0]
-            second_highest_median = results_medians['genotype'].iloc[1]
-            best_allele = results_pd.get_group(highest_loglike_median)
-            # print(highest_loglike_median)
-            # print(best_allele.head(n=2))
-            second_best = results_pd.get_group(second_highest_median)
+            best_allele = results_pd.get_group(allele_highest_lnL)
+            second_best = results_pd.get_group(allele_second_lnL)
             # compare best likelihoods
-            best_loglike_first = best_allele.sort_values(by="log_like", 
-                                                         ascending=False)['log_like'].iloc[0]
-            best_loglike_second = second_best.sort_values(by="log_like", 
-                                                          ascending=False)['log_like'].iloc[0]
-            best_loglike_ratio = best_loglike_first - best_loglike_second
+            best_lnL = results_maxs['lnL'].iloc[0]
+            second_lnL = results_maxs['lnL'].iloc[1]
+            best_lnL_ratio = best_lnL - second_lnL
+
             #compare median likelihoods 
-            median_loglike_first = results_medians['log_like'].iloc[0]
-            median_loglike_second = results_medians['log_like'].iloc[1]
-            median_loglike_ratio = median_loglike_first - median_loglike_second
+            best_lnL_percentile = best_allele.quantile(0.75)['lnL']
+            second_lnL_percentile = second_best.quantile(0.75)['lnL']
+            percentile_lnL_ratio = best_lnL_percentile - second_lnL_percentile
+
             #get the set of other alleles
-            other_alleles = set(results_medians.genotype) - set([highest_loglike_median])
+            other_alleles = set(results_maxs.genotype) - set([allele_highest_lnL])
             high_pval = 0
             n_tests = 0
             for b in other_alleles:
@@ -182,80 +182,15 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
             #Bonferroni correction in its essence
             high_pval *= n_tests
             #check if p_value threshold is satisfied
-            #get the medians for log likelihoods in groups
-            results_maxs = results_pd.max().sort_values(by="log_like", 
-                                                        ascending=False)
-            highest_loglike_max = results_maxs['genotype'].iloc[0]
 
-            if highest_loglike_max == highest_loglike_median:
-                if (
+            if (
                     high_pval < padjust and 
-                    median_loglike_ratio > loglike_threshold and
-                    best_loglike_ratio > loglike_threshold
+                    percentile_lnL_ratio > lnL_threshold and
+                    best_lnL_ratio > lnL_threshold
                 ):
                     successful = True
                     logging.debug("Will break! P-value: {}".format(high_pval))
                     break
-
-            else:
-                #TEST BEST NOW
-                second_highest_max = results_maxs['genotype'].iloc[1]
-                best_allele_max = results_pd.get_group(highest_loglike_max)
-                # print(best_allele_max.head(n=2))
-                second_best_max = results_pd.get_group(second_highest_max)
-                # compare best likelihoods
-                best_loglike_first_max = results_maxs['log_like'].iloc[0]
-                best_loglike_second_max = results_maxs['log_like'].iloc[1]
-                best_loglike_ratio_max = best_loglike_first_max - best_loglike_second_max
-                #compare median likelihoods 
-                median_loglike_first_max = best_allele_max.median()['log_like']
-                median_loglike_second_max = second_best_max.median()['log_like']
-                median_loglike_ratio_max = median_loglike_first_max - median_loglike_second_max
-                #get the set of other alleles
-                other_alleles = set(results_maxs.genotype) - set([highest_loglike_max])
-                high_pval_max = 0
-                for b in other_alleles:
-                    try:
-                        stat, pval = mannwhitneyu(
-                            best_allele.iloc[:,2],
-                            results_pd.get_group(b).iloc[:,2],
-                            alternative="greater"
-                        )
-
-                        high_pval = max(pval, high_pval_max)
-                    except ValueError:
-                        high_pval_max = 1
-
-                #Bonferroni correction in its essence
-                high_pval_max *= n_tests
-
-                if (
-                    high_pval < padjust and 
-                    median_loglike_ratio > loglike_threshold and
-                    best_loglike_ratio > loglike_threshold
-                ):
-                    if (
-                        high_pval_max > padjust or 
-                        median_loglike_ratio_max < loglike_threshold or
-                        best_loglike_ratio_max < loglike_threshold
-                    ):
-                        successful = True
-                        logging.debug("Will break! P-value: {}".format(high_pval))
-                        break
-                else:
-                    high_pval = high_pval_max
-                    median_loglike_ratio = median_loglike_ratio_max
-                    best_loglike_ratio = best_loglike_ratio_max
-                    best_allele = best_allele_max
-
-                    if (
-                        high_pval < padjust and 
-                        median_loglike_ratio > loglike_threshold and
-                        best_loglike_ratio > loglike_threshold
-                    ):
-                        successful = True
-                        logging.debug("Will break! P-value: {}".format(high_pval))
-                        break
 
         #calculate additional repetitions
         reps = 4 * run_reps if reps_round % 2 == 1 else run_reps
@@ -265,54 +200,73 @@ def monte_carlo(max_n_reps, constants, ranges, all_simulation_params):
 
         reps_round += 1
 
-    if all_simulation_params['save_report']:
+    if options['save_report']:
         results_pd_csv = pd.DataFrame.from_records(results, 
                                                    columns=results_colnames)
-        report_path = os.path.join(all_simulation_params['out_path'],
+        report_path = os.path.join(options['out_path'],
                                    "{}_{}.txt".format(block, name))
         results_pd_csv.to_csv(report_path, index=False, sep="\t")
 
     if min_sim < 25:
         filt = "no_success"
         #this can happen if there is noise from very distant alleles
-        ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+        ret = "\t".join([
             "./.", #genotype
             ".", #identity
             ".", #r^2
-            ".", #log_like
+            ".", #lnL
             filt, #FILTER
             ".", #Mann-Whitney U test, p_val
-            ".", #best loglike
-            ".", #median loglike
-            run_reps #reps
-        )
+            ".", #best lnL
+            ".", #median lnL
+            str(run_reps), #reps
+            "."
+        ])
         return ret
         
     high_pval = high_pval if high_pval < 1 else 1
-    best_guess = best_allele.sort_values("log_like", 
+
+    best_guess = best_allele.sort_values("lnL", 
                                          ascending=False).head(n=1)
+
+    #check for additional percentiles to be calculated
+    add_data = "."
+    if options['add_ratios'] != "":
+        percentiles = options['add_ratios'].split(";")
+        for perc in percentiles:
+            p = float(perc)
+            best_lnL_percentile = best_allele.quantile(p)['lnL']
+            second_lnL_percentile = second_best.quantile(p)['lnL']
+            percentile_lnL_ratio = best_lnL_percentile - second_lnL_percentile
+            if add_data == ".":
+                add_data = "{}|{}".format(perc, percentile_lnL_ratio)
+            else:
+                add_data += ";{}|{}".format(perc, percentile_lnL_ratio)
 
     if successful:
         filt = "PASS"
     else:
         conditions = [
             "MWU_test" if high_pval > padjust else "",
-            "best_ratio" if best_loglike_ratio < constants["loglike"] else "",
-            "median_ratio" if median_loglike_ratio < constants["loglike"] else ""
+            "best_ratio" if best_lnL_ratio < constants["lnL_threshold"] else "",
+            "percentile_ratio" if percentile_lnL_ratio < constants["lnL_threshold"] else ""
         ]
         filt = ",".join([cond for cond in conditions if cond != ""])
 
-    ret = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-            best_guess["genotype"].item(), #genotype n_reps/n_reps
-            best_guess["ident"].item(), #identity
-            best_guess["r_squared"].item(), #r^2
-            best_guess["log_like"].item(), #median log_likelihood 
-            filt, #FILTER
-            high_pval, #highest p_value
-            best_loglike_ratio, #best loglikelihood ratio
-            median_loglike_ratio, #median loglikelihood ratio
-            run_reps #repetitions
-        )
+    ret_list = [
+        best_guess["genotype"].item(), #genotype n_reps/n_reps
+        best_guess["ident"].item(), #identity
+        best_guess["r_squared"].item(), #r^2
+        best_guess["lnL"].item(), #median lnLlihood 
+        filt, #FILTER
+        high_pval, #highest p_value
+        best_lnL_ratio, #best lnLlihood ratio
+        percentile_lnL_ratio, #median lnLlihood ratio
+        run_reps, #repetitions
+        add_data #additional data
+    ]
+
+    ret = "\t".join([str(element) for element in ret_list])
 
     return ret
 
@@ -410,9 +364,9 @@ def one_repeat(dict constants, tuple ranges,
 
     
     if sum(alleles > PCR_products) != 0:
-        loglike_a = -999999
+        lnL_a = -999999
     else:
-        loglike_a = mhl(alleles, PCR_products) 
+        lnL_a = mhl(alleles, PCR_products) 
 
     """Simulate readout from PCR pool and compare it to the readout
     from the input."""
@@ -435,7 +389,7 @@ def one_repeat(dict constants, tuple ranges,
                       / genotype_total)
         r_squared = rsq(alleles, readout)
 
-    report = [identity, r_squared, loglike_a, initial, noise_coef]
+    report = [identity, r_squared, lnL_a, initial, noise_coef]
     prmtrs = [
         parameters['down'], 
         parameters['up'], 
