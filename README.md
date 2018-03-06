@@ -212,7 +212,7 @@ optional arguments:
   -i lnL_threshold, --lnL_threshold lnL_threshold
                         Log-likelihood (lnL) ratio threshold. Default: 2.3
   -s n_star_copies, --start_copies n_star_copies
-                        Number of start copies. Default: 3e5
+                        Number of start copies. Default: 300000
   -l noise_threshold, --noise_threshold noise_threshold
                         How much noise should be added? Noise shouldn't
                         comprise more than the maximum fraction threshold of

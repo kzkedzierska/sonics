@@ -176,8 +176,7 @@ def run_sonics(feed_in, constants, ranges, sonics_run_options):
             "r_squared_75th_percentile",
             "lnL",
             "lnL_75th_percentile",
-            "repeats",
-            "\n"
+            "repeats\n"
           ])
         )
       else:
@@ -195,8 +194,7 @@ def run_sonics(feed_in, constants, ranges, sonics_run_options):
             "best_lnL_ratio",
             "median_lnL_ratio",
             "repeats", 
-            "additional_ratios",
-            "\n"
+            "additional_ratios\n"
           ])
         )
 
@@ -401,7 +399,12 @@ def process_one_genotype(input_tuple, constants, ranges, options):
     frac = (np.amin(alleles[alleles.nonzero()])
             / sum(alleles)
             * np.count_nonzero(alleles))
-    noise_coef = frac / (frac + 1)
+    noise_frac = frac / (frac + 1)
+    if noise_frac < constants['noise_threshold']:
+      noise_coef = (np.amin(alleles[alleles.nonzero()])
+                    / sum(alleles))
+    else:
+      noise_coef = 0
 
     constants['alleles'] = alleles
     constants['noise_coef'] = noise_coef
@@ -536,10 +539,10 @@ def main():
     )
     parser.add_argument(
         "-s", "--start_copies",
-        default=3e5,
+        default=300000,
         type=int,
         metavar="n_star_copies",
-        help="Number of start copies. Default: 3e5"
+        help="Number of start copies. Default: 300000"
     )
     parser.add_argument(
         "-l", "--noise_threshold", #noise ~ loud

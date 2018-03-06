@@ -333,16 +333,12 @@ def one_repeat(dict constants, tuple ranges,
     else:
         initial = "{}/{}".format(second, first)
 
-    if noise_coef < noise_threshold:
+    if noise_coef > 0:
         noise = np.copy(alleles)
         noise[noise > 0] = noise_coef * sum(PCR_products)
         PCR_products += noise
-        PCR_products = simulate(PCR_products, constants, parameters, floor)
-
-    else:
-        # PCR simulation
-        PCR_products = simulate(PCR_products, constants,
-                                parameters, floor)
+    
+    PCR_products = simulate(PCR_products, constants, parameters, floor)
 
     PCR_total_molecules = np.sum(PCR_products)
 
