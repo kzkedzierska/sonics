@@ -1,30 +1,31 @@
 """
-usage: sonics [-h] [-o OUT_PATH] [-n FILE_NAME] [-p PROCESSES] [-t N]
-              [-y PCR_CYCLES] [-c AFTER_CAPTURE] [-b BLOCK] [-a NAME]
-              [-r REPS] [-g PADJUST] [-i LOGLIKE] [-s START_COPIES]
-              [-l NOISE_THRESHOLD] [-f FLOOR] [-j ONE_ALLELE] [-e MIN MAX]
-              [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [-m] [-x] [--save_report]
-              [-z] [-v] [--version]
+usage: sonics [-h] [-o out_path] [-n file_name] [-p n_processes] [-t n_strict]
+              [-y n_pcr_cycles] [-c n_after_capture] [-b block_id]
+              [-a sample_name] [-r n_repetitions] [-g p_adjust_threshold]
+              [-i lnL_threshold] [-s n_star_copies] [-l noise_threshold]
+              [-f n_floor] [-j n_one_allele_threshold] [-e MIN MAX]
+              [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [--add_ratios ratios]
+              [-m] [--monte_carlo] [--random] [--save_report]
+              [--up_preference] [-v] [--version]
               INPUT
 
-SONiCS - Stutter mONte Carlo Simulation Monte Carlo simulation of PCR based
-sequencing of Short Tandem Repeats with one or two alleles as a starting
-condition. Each simulation represents independent PCR reaction. Parameters
-controlling the PCR like amplification efficiency, parameters describing
-slippage up and down and capture step are randomly selected before each
-simulation. Initial alleles are chosen randomly or half randomly (in this mode
-only one allele is random, the other one will always be allele with maximum
-support). For each simulation sonics assigns log likelihood value describing
-the probability of generating the input readout from the PCR pool created in a
-given simulation. When certain number of simulations are run sonics compares
-the distributions of the log likelihood between the allele with highest median
-and all others. If adjusted highest p-value is below the threshold and median
-likelihood of the best genotype is at least e^8 times greater than second best
-sonics calls genotype. As a result, the program reports the r squared and
-fraction of properly identified reads parameters from the best simulation,
-median log likelihood, log likelihood ratio between top two genotypes, highest
-adjusted p_value from Mann-Whitney U test, number of run repeats and called
-genotype.
+SONiCS - Stutter mONte Carlo Simulation. SONiCS is a stutter correction
+algorithm based on derivative of Monte Carlo approach. Briefly, SONiCS models
+independent PCR reactions where set of reaction parameters including the
+efficiency of amplification, efficiency of capture, and the probability of
+polymerase slippage modeled separately for insertions and deletions are drawn
+from weak uniform priors based on experimental observations or user inputs.
+Initial alleles are chosen randomly. For each simulation sonics assigns log-
+likelihood (lnL) value describing the probability of generating the input
+readout from the PCR pool created in a given simulation. When a certain number
+of simulations are generated Mann-Whitney U test between the lnL distributions
+is performed and lnL ratios are calculated (for maximal and 75th percentile
+values). If the conditions of the successful run are not met SONiCS performs
+additional simulations until the maximum number of repetitions is reached, or
+it can call a genotype. As a result, program reports the called genotype
+together with descriptors of the best model. SONiCS can also be run in
+strictly Monte Carlo mode (with the option --monte_carlo). For more look in
+the README file.
 
 positional arguments:
   INPUT                 Either:allele composition - number of reads per
@@ -33,56 +34,61 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  -o OUT_PATH, --out_path OUT_PATH
+  -o out_path, --out_path out_path
                         Directory where output files will be stored. Warning:
                         SONiCS will overwrite results from previous runs
                         stored in the same directory if the file name won't be
                         changed. Default: .
-  -n FILE_NAME, --file_name FILE_NAME
+  -n file_name, --file_name file_name
                         Output file name. Default: sonics_out.txt
-  -p PROCESSES, --processes PROCESSES
+  -p n_processes, --processes n_processes
                         Number of sub-processes used in multiprocessing mode.
                         It can be understood as additional processes lunched
                         by the main sonics process and 0 means that SONiCS
                         won't lunch additional processes. This option is valid
                         only in VCF mode. Default: 0
-  -t N, --strict N      What to do when encountered partial repetitions of the
+  -t n_strict, --strict n_strict
+                        What to do when encountered partial repetitions of the
                         motif while parsing the VCF file. Options: 0 - pick on
                         random one of the closest alleles, 1 - exclude given
                         STR, 2 - exclude given genotype. Default: 1
-  -y PCR_CYCLES, --pcr_cycles PCR_CYCLES
+  -y n_pcr_cycles, --pcr_cycles n_pcr_cycles
                         Number of PCR cycles before introducing capture step.
                         Default: 12
-  -c AFTER_CAPTURE, --after_capture AFTER_CAPTURE
+  -c n_after_capture, --after_capture n_after_capture
                         How many cycles of PCR amplification were performed
                         after introducing capture step. Default: 12
-  -b BLOCK, --block BLOCK
+  -b block_id, --block block_id
                         Block name, valid only with string genotype as input.
                         Default: Block
-  -a NAME, --name NAME  Sample name, valid only with string genotype as input.
+  -a sample_name, --name sample_name
+                        Sample name, valid only with string genotype as input.
                         Default: sample
-  -r REPS, --repetitions REPS
+  -r n_repetitions, --repetitions n_repetitions
                         Number of maximum repetitions in the simulations.
                         Default: 1000
-  -g PADJUST, --padjust PADJUST
+  -g p_adjust_threshold, --padjust p_adjust_threshold
                         Adjusted p-value threshold for selecting the allele.
                         Default: 0.001
-  -i LOGLIKE, --loglike LOGLIKE
-                        Log likelihood ratio threshold. Default: 2.3
-  -s START_COPIES, --start_copies START_COPIES
-                        Number of start copies. Default: 3e5
-  -l NOISE_THRESHOLD, --noise_threshold NOISE_THRESHOLD
+  -i lnL_threshold, --lnL_threshold lnL_threshold
+                        Log-likelihood (lnL) ratio threshold. Default: 2.3
+  -s n_star_copies, --start_copies n_star_copies
+                        Number of start copies. Default: 300000
+  -l noise_threshold, --noise_threshold noise_threshold
                         How much noise should be added? Noise shouldn't
                         comprise more than the maximum fraction threshold of
                         the initial PCR pool (before first amplification).
                         Default: 0.05
-  -f FLOOR, --floor FLOOR
-                        Number that will be subtracted from the lowest number
-                        of STRs in the input genotype to set the threshold for
-                        the minimum number of STRs in a molecule for it to be
-                        included in the simulations. If set to -1 minimum
-                        number of STRs set to 1. Default: 5
-  -j ONE_ALLELE, --one_allele ONE_ALLELE
+  -f n_floor, --floor n_floor
+                        Parameter used in calculating the minimum number of
+                        STRs in a molecule for it to be included in PCR
+                        cycles. The formula stands as follows: min_strs =
+                        max(1, min(alleles_in_input) - n_floor), where alleles
+                        are expressed as the number of repetitions of the
+                        motif and n_floor is a parameter defined by this
+                        option. If set to -1 minimum number of STRs set to 1.
+                        Default: 5
+  -j n_one_allele_threshold, --one_allele n_one_allele_threshold
                         Number of reads supporting only one allele for it to
                         be included in the output. Default: 40
   -e MIN MAX, --efficiency MIN MAX
@@ -100,17 +106,23 @@ optional arguments:
   -k MIN MAX, --capture MIN MAX
                         Capture parameter (min and max). Values below zero
                         favor capturing short alleles. Default: (-0.25, 0.25)
+  --add_ratios ratios   Semicolon separated additional ratios to be calculated
+                        and reported in the last column of the output file.
+                        Example: 0.5;0.6;0.8;0.9 - median, 60th, 80th and 90th
+                        lnL percentile ratios will be calculated and reported.
   -m, --vcf_mode        VCF file provided. Assuming that different samples, if
                         more than one is present, are put in the consecutive
                         columns, starting with 10th. Default: string mode.
-  -x, --random          Randomly select alleles for simulations from the
+  --monte_carlo         Run SONiCS in Monte Carlo mode. Increased number of
+                        repetitions recommended
+  --random              Randomly select alleles for simulations from the
                         input. Default: randomly select only one of the
                         alleles, the other is chosen based on the support
                         information from input.
   --save_report         Save full report - including the parameters for each
                         simulation. The files will be named with block and
                         sample name, and stored in the output directory.
-  -z, --up_preference   Up-stutter doesn't have to be less probable than down
+  --up_preference       Up-stutter doesn't have to be less probable than down
                         stutter. Default: probability of down-stutter must be
                         higher than the probability of up-stutter.
   -v, --verbose         Verbose mode.
@@ -133,24 +145,9 @@ import sonics
 __author__ = "Katarzyna Kedzierska"
 __email__ = "kzk5f@virginia.edu"
 
-DESC = """SONiCS - Stutter mONte Carlo Simulation Monte Carlo simulation of 
-PCR based sequencing of Short Tandem Repeats with one or two alleles as a 
-starting condition. Each simulation represents independent PCR reaction. 
-Parameters controlling the PCR like amplification efficiency, parameters 
-describing slippage up and down and capture step are randomly selected before 
-each simulation. Initial alleles are chosen randomly or half randomly (in this 
-mode only one allele is random, the other one will always be allele with 
-maximum support). For each simulation sonics assigns log likelihood value 
-describing the probability of generating the input readout from the PCR pool 
-created in a given simulation. When certain number of simulations are run 
-sonics compares the distributions of the log likelihood between the allele 
-with highest median and all others. If adjusted highest p-value is below the 
-threshold and median likelihood of the best genotype is at least e^8 times 
-greater than second best sonics calls genotype. As a result, the program 
-reports the r squared and fraction of properly identified reads parameters 
-from the best simulation, median log likelihood, log likelihood ratio between 
-top two genotypes, highest adjusted p_value from Mann-Whitney U test, number 
-of run repeats and called genotype.
+DESC = """SONiCS - Stutter mONte Carlo Simulation.
+
+SONiCS is a stutter correction algorithm based on derivative of Monte Carlo approach. Briefly, SONiCS models independent PCR reactions where set of reaction parameters including the efficiency of amplification, efficiency of capture, and the probability of polymerase slippage modeled separately for insertions and deletions are drawn from weak uniform priors based on experimental observations or user inputs. Initial alleles are chosen randomly. For each simulation sonics assigns log-likelihood (lnL) value describing the probability of generating the input readout from the PCR pool created in a given simulation. When a certain number of simulations are generated Mann-Whitney U test between the lnL distributions is performed and lnL ratios are calculated (for maximal and 75th percentile values). If the conditions of the successful run are not met SONiCS performs additional simulations until the maximum number of repetitions is reached, or it can call a genotype. As a result, program reports the called genotype together with descriptors of the best model. SONiCS can also be run in strictly Monte Carlo mode (with the option --monte_carlo). For more look in the README file.
 """
 
 def run_sonics(feed_in, constants, ranges, sonics_run_options):
@@ -167,20 +164,39 @@ def run_sonics(feed_in, constants, ranges, sonics_run_options):
 
     #Write header to the file
     with open(out_file_path, "w+") as out_file:
+      if sonics_run_options['monte_carlo']:
+         out_file.write(
+          "\t".join([
+            "sample",
+            "block",
+            "ref",
+            "genotype",
+            "identity",
+            "identity_75th_percentile",
+            "r_squared",
+            "r_squared_75th_percentile",
+            "lnL",
+            "lnL_75th_percentile",
+            "repeats\n"
+          ])
+        )
+      else:
         out_file.write(
-          "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+          "\t".join([
             "sample",
             "block",
             "ref",
             "genotype",
             "identity",
             "r_squared",
-            "loglike",
+            "lnL",
             "filter",
             "MWUtes_pval",
-            "best_loglike_ratio",
-            "median_loglike_ratio",
-            "repeats")
+            "best_lnL_ratio",
+            "quartile_lnL_ratio",
+            "repeats", 
+            "additional_ratios\n"
+          ])
         )
 
     if sonics_run_options['vcf_mode']:
@@ -309,8 +325,9 @@ def parse_vcf(file_path, strict=1):
                         for partial in alleles[diff != 0]:
                             support[diff.nonzero()[0]] = 0
 
+                zipas = zip(alleles, support)
                 genot_list = [
-                    "%i|%i" %(a, s) for a, s in zip(alleles, support) if s > 0
+                    "%i|%i" %(a, s) for a, s in zipas if s > 0 and a > 0
                 ]
                 genot = ";".join(genot_list)
                 genotypes_list.append((sample, block_name, ref, genot))
@@ -336,42 +353,59 @@ def process_one_genotype(input_tuple, constants, ranges, options):
       if constants['genotype_total'] > constants['one_allele_threshold']:
         one_allele = alleles.nonzero()[0][0]
         filt = "no_simulations"
-        #this can happen if there is noise from very distant alleles
-        result = "{}/{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-            one_allele, one_allele, #genotype
-            ".", #identity
-            ".", #r^2
-            ".", #log_like
-            filt, #FILTER
-            ".", #Mann-Whitney U test, p_val
-            ".", #best loglike
-            ".", #median loglike
-            0 #reps
-        )
-        logging.debug(result)
-        logging.warning(("Only one allele provided in input, "
-                         "with read support above the threshold. "
-                         "Including this genotype: %s "
-                         "for sample: %s in the output. "
-                         "The simulation won't be performed and "
-                         "likelihood won't be calculated."), block, name)
-        logging.info(result)
-        with open(out_file_path, "a+") as out_file:
-          out_file.write("{}\t{}\t{}\t{}\n".format(name, block, ref, result))
-        return
+        if options['monte_carlo']:
+          result = "\t".join([
+            "{}/{}".format(one_allele, one_allele), #genotype
+            ".", #"identity",
+            ".", #"identity_75th_percentile",
+            ".", #"r_squared",
+            ".", #"r_squared_75th_percentile",
+            ".", #"lnL",
+            ".", #"lnL_75th_percentile",
+            "0" #"repeats"
+          ])
+        else:
+          result = "\t".join([
+              "{}/{}".format(one_allele, one_allele), #genotype
+              ".", #"identity",
+              ".", #"r_squared",
+              ".", #"lnL",
+              filt, #"filter",
+              ".", #"MWUtes_pval",
+              ".", #"best_lnL_ratio",
+              ".", #"median_lnL_ratio",
+              "0", #"repeats"
+              "." #additional data
+          ])
+          logging.debug(result)
+          logging.warning(("Only one allele provided in input, "
+                           "with read support above the threshold. "
+                           "Including this genotype: %s "
+                           "for sample: %s in the output. "
+                           "The simulation won't be performed and "
+                           "likelihood won't be calculated."), block, name)
+          logging.info(result)
+          with open(out_file_path, "a+") as out_file:
+            out_file.write("{}\t{}\t{}\t{}\n".format(name, block, ref, result))
+          return
       else:
         logging.warning(("Only one allele provided in input, "
                          "with read support below the threshold. "
                          "Skipping this genotype: %s "
                          "for sample: %s in the output."), block, name)
-        return
+      return
 
 
     #determine if can add noise
     frac = (np.amin(alleles[alleles.nonzero()])
             / sum(alleles)
             * np.count_nonzero(alleles))
-    noise_coef = frac / (frac + 1)
+    noise_frac = frac / (frac + 1)
+    if noise_frac < constants['noise_threshold']:
+      noise_coef = (np.amin(alleles[alleles.nonzero()])
+                    / sum(alleles))
+    else:
+      noise_coef = 0
 
     constants['alleles'] = alleles
     constants['noise_coef'] = noise_coef
@@ -395,8 +429,6 @@ def process_one_genotype(input_tuple, constants, ranges, options):
         out_file.write("{}\t{}\t{}\t{}\n".format(name, block, ref, result))
 
     logging.debug("Monte Carlo simulation took: %f second(s)", elapsed)
-
-#TODO: Rewrite help.
 
 def main():
     with open(path[0]+'/VERSION',"r") as version_file:
@@ -423,20 +455,20 @@ def main():
         help=("Directory where output files will be stored. Warning: SONiCS "
               "will overwrite  results from previous runs stored in the same "
               "directory if the file name won't be changed. Default: ."),
-        metavar="OUT_PATH"
+        metavar="out_path"
     )
     parser.add_argument(
         "-n", "--file_name",
         type=str,
         default="sonics_out.txt",
-        metavar="FILE_NAME",
+        metavar="file_name",
         help="Output file name. Default: sonics_out.txt"
     )
     parser.add_argument(
         "-p", "--processes",
         type=int,
         default=0,
-        metavar="PROCESSES",
+        metavar="n_processes",
         help=("Number of sub-processes used in multiprocessing mode. "
               "It can be understood as additional processes lunched by "
               "the main sonics process and 0 means that SONiCS won't "
@@ -446,7 +478,7 @@ def main():
         "-t", "--strict",
         type=int,
         default=1,
-        metavar="N",
+        metavar="n_strict",
         help=("What to do when encountered partial repetitions of the motif "
               "while parsing the VCF file. Options: 0 - pick on random one of "
               "the closest alleles, 1 - exclude given STR, 2 - exclude given "
@@ -456,7 +488,7 @@ def main():
         "-y", "--pcr_cycles",
         type=int,
         default=12,
-        metavar="PCR_CYCLES",
+        metavar="n_pcr_cycles",
         help=("Number of PCR cycles before introducing capture step. "
               "Default: 12")
     )
@@ -464,7 +496,7 @@ def main():
         "-c", "--after_capture",
         type=int,
         default=12,
-        metavar="AFTER_CAPTURE",
+        metavar="n_after_capture",
         help=("How many cycles of PCR amplification were performed after "
               "introducing capture step. Default: 12")
     )
@@ -472,7 +504,7 @@ def main():
         "-b", "--block",
         type=str,
         default="Block",
-        metavar="BLOCK",
+        metavar="block_id",
         help=("Block name, valid only with string genotype as input. "
               "Default: Block")
     )
@@ -480,7 +512,7 @@ def main():
         "-a", "--name",
         type=str,
         default="sample",
-        metavar="NAME",
+        metavar="sample_name",
         help=("Sample name, valid only with string genotype as input. "
               "Default: sample")
     )
@@ -488,36 +520,36 @@ def main():
         "-r", "--repetitions",
         default=1000,
         type=int,
-        metavar="REPS",
+        metavar="n_repetitions",
         help="Number of maximum repetitions in the simulations. Default: 1000"
     )
     parser.add_argument(
         "-g", "--padjust",
-        metavar="PADJUST",
+        metavar="p_adjust_threshold",
         type=float,
         default=0.001,
         help="Adjusted p-value threshold for selecting the allele. "
              "Default: 0.001"
     )
     parser.add_argument(
-        "-i", "--loglike",
-        metavar="LOGLIKE",
+        "-i", "--lnL_threshold",
+        metavar="lnL_threshold",
         type=float,
         default=2.3,
-        help="Log likelihood ratio threshold. Default: 2.3"
+        help="Log-likelihood (lnL) ratio threshold. Default: 2.3"
     )
     parser.add_argument(
         "-s", "--start_copies",
-        default=3e5,
+        default=300000,
         type=int,
-        metavar="START_COPIES",
-        help="Number of start copies. Default: 3e5"
+        metavar="n_star_copies",
+        help="Number of start copies. Default: 300000"
     )
     parser.add_argument(
         "-l", "--noise_threshold", #noise ~ loud
         default=0.05,
         type=float,
-        metavar="NOISE_THRESHOLD",
+        metavar="noise_threshold",
         help=("How much noise should be added? Noise shouldn't comprise more "
               "than the maximum fraction threshold of the initial PCR pool "
               "(before first amplification). Default: 0.05") 
@@ -526,18 +558,21 @@ def main():
         "-f", "--floor",
         type=int,
         default=5,
-        metavar="FLOOR",
-        help=("Number that will be subtracted from the lowest number of STRs "
-              "in the input genotype to set the threshold for the minimum "
-              "number of STRs in a molecule for it to be included in the "
-              "simulations. If set to -1 minimum number of STRs set to 1. "
+        metavar="n_floor",
+        help=("Parameter used in calculating the minimum number of STRs in "
+              "a molecule for it to be included in PCR cycles. The formula "
+              "stands as follows: "
+              "min_strs = max(1, min(alleles_in_input) - n_floor), "
+              "where alleles are expressed as the number of repetitions of "
+              "the motif and n_floor is a parameter defined by this option. "
+              "If set to -1 minimum number of STRs set to 1. "
               "Default: 5")
     )
     parser.add_argument(
         "-j", "--one_allele",
         type=int,
         default=40,
-        metavar="ONE_ALLELE",
+        metavar="n_one_allele_threshold",
         help=("Number of reads supporting only one allele for it to be "
               "included in the output. Default: 40")
     )
@@ -578,6 +613,16 @@ def main():
               "capturing short alleles. Default: (-0.25, 0.25)")
     )
     parser.add_argument(
+        "--add_ratios",
+        default="",
+        type=str,
+        metavar="ratios",
+        help=("Semicolon separated additional ratios to be calculated "
+              "and reported in the last column of the output file. "
+              "Example: 0.5;0.6;0.8;0.9 - median, 60th, 80th and 90th "
+              "lnL percentile ratios will be calculated and reported." )
+    )
+    parser.add_argument(
         "-m", "--vcf_mode",
         action="store_true",
         default=False,
@@ -586,7 +631,14 @@ def main():
               "starting with 10th. Default: string mode.")
     )
     parser.add_argument(
-        "-x", "--random",
+        "--monte_carlo",
+        action="store_true",
+        default=False,
+        help=("Run SONiCS in Monte Carlo mode. "
+              "Increased number of repetitions recommended")
+    )
+    parser.add_argument(
+        "--random",
         action="store_true",
         help=("Randomly select alleles for simulations from the input. "
               "Default: randomly select only one of the alleles, the other "
@@ -601,7 +653,7 @@ def main():
               "and sample name, and stored in the output directory.")
     )
     parser.add_argument(
-        "-z", "--up_preference",
+        "--up_preference",
         action="store_true",
         help=("Up-stutter doesn't have to be less probable than down stutter. "
               "Default: probability of down-stutter must be higher than the "
@@ -643,7 +695,7 @@ def main():
         'capture_cycle': capture_cycle,
         'up_preference': args.up_preference,
         'floor': args.floor,
-        'loglike': args.loglike,
+        'lnL_threshold': args.lnL_threshold,
         'start_copies': args.start_copies,
         'genotype': args.INPUT,
         'padjust': args.padjust,
@@ -670,7 +722,9 @@ def main():
         'block': args.block,
         'processes': args.processes,
         'verbose': verb,
-        'save_report' : args.save_report
+        'save_report' : args.save_report,
+        'monte_carlo': args.monte_carlo,
+        'add_ratios': args.add_ratios
     }
 
     run_sonics(
