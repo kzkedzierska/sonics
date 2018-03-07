@@ -33,6 +33,8 @@ python3 sonics "8|5;9|113;10|89"
 
 SONiCS - Stutter mONte Carlo Simulation.
 
+![Schematic](figure.png)
+
 SONiCS is a stutter correction algorithm based on derivative of Monte Carlo approach. Briefly, SONiCS models independent PCR reactions where set of reaction parameters including the efficiency of amplification, efficiency of capture, and the probability of polymerase slippage modeled separately for insertions and deletions are drawn from weak uniform priors based on experimental observations or user inputs. Initial alleles are chosen randomly. For each simulation sonics assigns log-likelihood (lnL) value describing the probability of generating the input readout from the PCR pool created in a given simulation. When a certain number of simulations are generated Mann-Whitney U test between the lnL distributions is performed and lnL ratios are calculated (for maximal and 75th percentile values). If the conditions of the successful run are not met SONiCS performs additional simulations until the maximum number of repetitions is reached, or it can call a genotype. As a result, program reports the called genotype together with descriptors of the best model. SONiCS can also be run in strictly Monte Carlo mode (with the option --monte_carlo). For more details look below.
 
 ### INPUT
@@ -266,5 +268,6 @@ optional arguments:
                         higher than the probability of up-stutter.
   -v, --verbose         Verbose mode.
   --version             show program's version number and exit
+
 
 ```
