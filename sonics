@@ -192,7 +192,7 @@ def run_sonics(feed_in, constants, ranges, sonics_run_options):
             "filter",
             "MWUtes_pval",
             "best_lnL_ratio",
-            "median_lnL_ratio",
+            "quartile_lnL_ratio",
             "repeats", 
             "additional_ratios\n"
           ])
