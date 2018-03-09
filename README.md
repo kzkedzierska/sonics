@@ -2,7 +2,7 @@
 
 ## SUMMARY
 
-SONiCS performs Monte Carlo simulations of the PCR of Short Tandem Repeats, calculates the likelihood of generating given support read out (reads per allele) out of the PCR pool and determines the most probable genotype based on the log likelihood distributions.
+SONiCS performs dense forward simulations of the PCR of Short Tandem Repeats from capture experiments, calculates the likelihood of generating the provided read support (reads per allele) out of the final PCR pool and determines the most probable genotype based on the log likelihood distributions from all such simulations.
 
 ## REQUIREMENTS
 
@@ -16,7 +16,7 @@ SONiCS performs Monte Carlo simulations of the PCR of Short Tandem Repeats, calc
 
 ## INSTALLATION
 
-In order to configure the script run the install.sh script. If more than one python3 installed supply the path for the python version. Script will check for all dependencies and inform you if some are missing. After installation it will run a simple test and report on whether everything is working as expected.
+The install.sh script checks for all the dependencies and requirements, and informs the user if a package is not installed. The user should provide the path to the version of python3 that they want SONiCS to use, in cases where more than one version of python3 is installed. At the end, the install.sh script runs a simple test and reports on whether everything is working as expected. Run the install.sh  script as follows:
 
 ```bash
 bash install.sh [PATH_TO_PYTHON3]
@@ -35,15 +35,15 @@ SONiCS - Stutter mONte Carlo Simulation.
 
 ![Schematic](figure.png)
 
-SONiCS is a stutter correction algorithm based on derivative of Monte Carlo approach. Briefly, SONiCS models independent PCR reactions where set of reaction parameters including the efficiency of amplification, efficiency of capture, and the probability of polymerase slippage modeled separately for insertions and deletions are drawn from weak uniform priors based on experimental observations or user inputs. Initial alleles are chosen randomly. For each simulation sonics assigns log-likelihood (lnL) value describing the probability of generating the input readout from the PCR pool created in a given simulation. When a certain number of simulations are generated Mann-Whitney U test between the lnL distributions is performed and lnL ratios are calculated (for maximal and 75th percentile values). If the conditions of the successful run are not met SONiCS performs additional simulations until the maximum number of repetitions is reached, or it can call a genotype. As a result, program reports the called genotype together with descriptors of the best model. SONiCS can also be run in strictly Monte Carlo mode (with the option --monte_carlo). For more details look below.
+SONiCS is a stutter correction algorithm for STR datasets generated using target capture. Briefly, SONiCS models independent PCR reactions where set of reaction parameters including the efficiency of amplification, efficiency of capture, and the probability of polymerase slippage modeled separately for insertions and deletions are drawn from weak uniform priors based on experimental observations or user inputs. Initial alleles are chosen randomly. For each simulation sonics assigns log-likelihood (lnL) value describing the probability of generating the input readout from the PCR pool generated in a given simulation. When a certain predetermined number of simulations are completed, Mann-Whitney U test between the lnL distributions is performed and lnL ratios are calculated (for maximal and 75th percentile values). If specified conditions on those tests are not met SONiCS performs additional simulations until the maximum number of repetitions is reached, or it can call a genotype that passes all filters. In the end the program reports the called genotype together with descriptors of the best model. SONiCS can also be run in strictly Monte Carlo mode (with the option --monte_carlo), which is further described below.
 
 ### INPUT
 
-SONiCS accepts either the string genotype having alleles, marked as number of repeats per molecule, and number of supporting them reads in the following format: allele1|reads;allele2|reads;allele3|reads or a **VCF file** with one genotype per line and genotypes for samples in the consecutive columns starting with 9th.
+SONiCS accepts either (a) a string that enumerates the read support for the various repeat counts in the following format: allele1|reads;allele2|reads;allele3|reads or (b) a **VCF file** with one genotype per line and genotypes for samples in the consecutive columns starting with 9th.
 
 Examples:
 
-* string genotype: "5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
+* string: "5|1;6|1;7|5;8|11;9|20;10|24;11|2;12|1"
 * VCF file (lorem_ipsum marks additional information that can be in the file but won't be used)
 
 ```
@@ -59,8 +59,8 @@ The output is saved to sonics_out.txt file in the output directory. It has the f
 * descriptors: identity, r^2 and log likelihood of the best model;
 * filter column - possible values:
 	*  PASS - all conditions are met;
-	*  no_simulations - SONiCS did not run simulations, only one allele in the input readout;
-	*  no_success - no simulation generated a PCR pool from which the input readout could be generated (this can happen with very noisy genotypes, increasing the noise ratio might help in those cases);
+	*  no_simulations - SONiCS did not run any simulations, only one allele in the input readout;
+	*  no_success - none of the simulations generated a PCR pool from which the input readout could be generated (this can happen with very noisy genotypes, increasing the noise ratio might help in those cases);
 	*  MWU_test - p-value from Mann-Whitney U test was above the threshold;
 	*  best_ratio - ratio of the best log-likelihoods from two best genotypes was below the threshold;
 	*  median_ratio - ratio of the median log-likelihoods from two best genotypes was below the threshold.
@@ -93,16 +93,16 @@ sampleXYZ  Block123   .       9/10    0.893719806763285       0.8985507246376812
 ### MODES
 
 #### Monte Carlo
-SONiCS can be run in strictly Monte Carlo mode with **--monte_carlo** mode. That means that SONiCS will not stop and won't test the lnL distributions or ratio. It will report the values of descriptors for best model (maximal and the 75th percentile). 
+Another approach to calling genotypes from capture datasets is to try to run a large number of simulations that saturate the parameter space and then pick the genotype that has the highest likelihood at varying quantiles of the distributions. SONiCS implements this approach, and it can be invoked by using the --monte_carlo option.
 
 #### Saving all simulations
-SONiCS can store the parameters and descriptors of all simulations. When run with **--save_report** it will dump the full report (with one simulation parameters and descriptors per line) into a csv file in the output directory. 
+SONiCS can store the parameters and descriptors from all simulations. When run with **--save_report** it will dump the full report (with one simulation parameters and descriptors per line) into a csv file in the output directory. 
 
 #### Choosing starting alleles
 SONiCS can choose input alleles randomly or half randomly - one allele is always the one with the highest support. By default sonics run in half_random mode, that can be changed to random by specifying **--random**.
 
 #### Support for partial alleles
-* **-t, --strict n_strict** - Procedure when encountered partial repetitions of the motif while parsing the VCF file. Options: 0 - pick on random one of the closest alleles, 1 - exclude given STR, 2 -exclude given genotype. Default: 1
+* **-t, --strict n_strict** - Action when encountered with partial repetitions of the motif in the VCF file. Options: 0 - pick on random one of the closest alleles, 1 - exclude given STR, 2 -exclude given genotype. Default: 1
 
 *Example:*
 REF=11, MOTIF=GT, GT=0|54;1|27;2|914;4|15
@@ -125,8 +125,8 @@ Example: 0.5;0.6;0.8;0.9 means that median, 60th, 80th and 90th lnL percentile r
 Parameters are chosen on random from the given open interval before each simulation. 
 
 * **-e, --efficiency N N** - PCR efficiency default: (0.001, 0.1)
-* **-d, --down N N** - probability of slippage down - synthesizing molecule with less repeats; default: (0, 0.1)
-* **-u, --up N N** - probability of slippage up - synthesizing molecule with more repeats; default: (0, 0.1)
+* **-d, --down N N** - probability of slippage down - synthesizing molecule with lower repeat counts; default: (0, 0.1)
+* **-u, --up N N** - probability of slippage up - synthesizing molecule with higher repeat counts; default: (0, 0.1)
 * **-k, --capture N N** - parameter describing efficiency of the capture step. Values below zero favor capturing shorter molecules; default: (-0.25, 0.25)
 * **--up_preference** - up-stutter doesn't have to be more probable than down-stutter; default slippage_down > slippage_up
 * **-f, --floor n_floor** - Parameter used in calculating the minimum number of STRs in a molecule for it to be included in PCR cycles. Default: 5
@@ -238,8 +238,8 @@ optional arguments:
                         0.1)
   -d MIN MAX, --down MIN MAX
                         Per unit probability of down-slippage - generating a
-                        molecule with less repeats (min and max). Default: (0,
-                        0.1)
+                        molecule with lower repeat count (min and max). 
+                        Default: (0, 0.1)
   -u MIN MAX, --up MIN MAX
                         Per unit probability of up-slippage - generating a
                         molecule with more repeats (min and max). Default: (0,
