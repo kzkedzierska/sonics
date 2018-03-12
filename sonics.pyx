@@ -139,7 +139,7 @@ def monte_carlo(max_n_reps, constants, ranges, options):
         #check what's the minimum of simulations per genotype
         min_sim = results_pd['lnL'].apply(lambda x: x[x > -999999].count()).sort_values().iloc[0]
         #check for minimum number of simulations
-        if min_sim >= 25:
+        if min_sim >= options['min_sim']:
             #get the medians for log likelihoods in groups
             results_maxs = results_pd.max().sort_values(by="lnL", 
                                                         ascending=False)

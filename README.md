@@ -144,10 +144,10 @@ usage: sonics [-h] [-o out_path] [-n file_name] [-p n_processes] [-t n_strict]
               [-y n_pcr_cycles] [-c n_after_capture] [-b block_id]
               [-a sample_name] [-r n_repetitions] [-g p_adjust_threshold]
               [-i lnL_threshold] [-s n_star_copies] [-l noise_threshold]
-              [-f n_floor] [-j n_one_allele_threshold] [-e MIN MAX]
-              [-d MIN MAX] [-u MIN MAX] [-k MIN MAX] [--add_ratios ratios]
-              [-m] [--monte_carlo] [--random] [--save_report]
-              [--up_preference] [-v] [--version]
+              [-f n_floor] [--min_sim min_sim] [-j n_one_allele_threshold]
+              [-e MIN MAX] [-d MIN MAX] [-u MIN MAX] [-k MIN MAX]
+              [--add_ratios ratios] [-m] [--monte_carlo] [--random]
+              [--save_report] [--up_preference] [-v] [--version]
               INPUT
 
 SONiCS - Stutter mONte Carlo Simulation. SONiCS is a stutter correction
@@ -229,6 +229,14 @@ optional arguments:
                         motif and n_floor is a parameter defined by this
                         option. If set to -1 minimum number of STRs set to 1.
                         Default: 5
+  --min_sim min_sim     Minimum of successful simulation per run in order to
+                        run tests on log-likelihood values. If there minimum
+                        number of successful simulations is not reached,
+                        SONiCS returns no_success in Filter column. This may
+                        happen if a) the simulations are run without adding
+                        noise, b) maximum number of simulations is too small
+                        to satisfy the minimumfor successful simulations per
+                        genotype. c) combination of both. Default: 25
   -j n_one_allele_threshold, --one_allele n_one_allele_threshold
                         Number of reads supporting only one allele for it to
                         be included in the output. Default: 40
@@ -238,7 +246,7 @@ optional arguments:
                         0.1)
   -d MIN MAX, --down MIN MAX
                         Per unit probability of down-slippage - generating a
-                        molecule with lower repeat count (min and max). 
+                        molecule with lower repeat count (min and max).
                         Default: (0, 0.1)
   -u MIN MAX, --up MIN MAX
                         Per unit probability of up-slippage - generating a
@@ -268,6 +276,5 @@ optional arguments:
                         higher than the probability of up-stutter.
   -v, --verbose         Verbose mode.
   --version             show program's version number and exit
-
-
+  
 ```
