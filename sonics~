@@ -295,7 +295,7 @@ def parse_vcf(file_path, strict=1):
                 try:
                   gt_string = line_list[sample_ind].split(":")[all_reads_loc]
                 except IndexError:
-                  logging.warning(("Missing ALLREADS field in the input for "
+                  logging.warning(("Missing ALLREADS field in the input for"
                                    "block: %s, sample: %s"), 
                                   block_name, sample)
                   sample_ind += 1
