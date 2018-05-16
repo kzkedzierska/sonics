@@ -239,7 +239,7 @@ optional arguments:
                         genotype. c) combination of both. Default: 25
   -j n_one_allele_threshold, --one_allele n_one_allele_threshold
                         Number of reads supporting only one allele for it to
-                        be included in the output. Default: 40
+                        be included in the output. Default: 45
   -e MIN MAX, --efficiency MIN MAX
                         PCR efficiency before-after per cycle, i.e.
                         probability of the amplification. Default: (0.001,
