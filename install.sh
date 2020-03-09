@@ -12,8 +12,8 @@ usage()
    echo -e "Usage:
 
    $PROGRAM [PATH_TO_PYTHON3]
-   
-   Checks for requirements and compiles SONiCS. Performs small test to check if everything is working properly." 
+
+   Checks for requirements and compiles SONiCS. Performs small test to check if everything is working properly."
 }
 
 PATH_TO_PYTHON3=$1
@@ -29,7 +29,7 @@ if [[ major -lt "3" || minor -lt "4" ]]; then
 fi
 
 #check for all the packages
-for package in $(echo "cython numpy pandas scipy pymc"); do
+for package in $(echo "cython numpy pandas scipy"); do
 	if ! "$PATH_TO_PYTHON3" -c "import $package" &> /dev/null; then
 		missing_packages=$(echo ${missing_packages} $package);
 	fi
@@ -39,10 +39,12 @@ if [ "X$missing_packages" != "X" ]; then
 	error "Missing module(s): ${missing_packages}."
 fi
 
-#Cythonize SONiCS
+# Compile mvhyperg code
+f2py -c -m pymc_extracted pymc_extracted.f
+# Cythonize SONiCS
 "$PATH_TO_PYTHON3" setup.py build_ext --inplace
 
-#run test 
+# run test
 echo "Running test on support read out: 8|5;9|113;10|89"
 "$PATH_TO_PYTHON3" sonics "8|5;9|113;10|89"
 
@@ -52,6 +54,6 @@ if [ $? == 0 ]; then
     rm -rf build
 else
     echo "The installation did not work as expected. Please check the error"
-    echo "messages above to resolve installation issues. Please contact the" 
+    echo "messages above to resolve installation issues. Please contact the"
     echo "author if you need further help. "
 fi

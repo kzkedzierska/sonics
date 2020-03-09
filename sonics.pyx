@@ -5,7 +5,7 @@ import cython
 import numpy as np
 import pandas as pd
 from scipy.stats import mannwhitneyu
-from pymc.distributions import multivariate_hypergeometric_like as mhl
+from pymc_extracted import mvhyperg as mhl
 cimport numpy as np
 DTYPE = np.int
 ctypedef np.int_t DTYPE_t
@@ -48,7 +48,7 @@ def monte_carlo(max_n_reps, constants, ranges, options):
     """Runs Monte Carlo simulation of the PCR amplification until
     p_value threshold for the Mann Whitney test is reached or
     the number of repetition reaches the maximum.
-    
+
     Arguments:
     max_n_reps -- upper limit for number of repetitions run
     constants -- constants throughout the simulations
@@ -78,7 +78,7 @@ def monte_carlo(max_n_reps, constants, ranges, options):
 
     if options['monte_carlo']:
         reps = max_n_reps
-    else: 
+    else:
         reps = 100 if max_n_reps > 100 else max_n_reps
 
     while run_reps < max_n_reps:
@@ -93,17 +93,17 @@ def monte_carlo(max_n_reps, constants, ranges, options):
         run_reps += reps
         #group by the initial genotype
         results_colnames = [
-            'ident', 
-            'r_squared', 
-            'lnL', 
-            'genotype', 
-            'noise_coef', 
-            'down', 
-            'up', 
-            'capture', 
+            'ident',
+            'r_squared',
+            'lnL',
+            'genotype',
+            'noise_coef',
+            'down',
+            'up',
+            'capture',
             'efficiency'
         ]
-        results_pd = pd.DataFrame.from_records(results, 
+        results_pd = pd.DataFrame.from_records(results,
                                                columns=results_colnames)
 
         if options['monte_carlo']:
@@ -112,7 +112,7 @@ def monte_carlo(max_n_reps, constants, ranges, options):
                                            "{}_{}.txt".format(block, name))
                 results_pd.to_csv(report_path, index=False, sep="\t")
 
-            best_guess = results_pd.sort_values(by="lnL", 
+            best_guess = results_pd.sort_values(by="lnL",
                                                 ascending=False).head(n=1)
             genotype = best_guess["genotype"].item()
 
@@ -125,7 +125,7 @@ def monte_carlo(max_n_reps, constants, ranges, options):
                 quantiles["ident"].item(), #identity quantile
                 best_guess["r_squared"].item(), #r^2
                 quantiles["r_squared"].item(), #r^2 quantile
-                best_guess["lnL"].item(), #lnLlihood 
+                best_guess["lnL"].item(), #lnLlihood
                 quantiles["lnL"].item(), #lnL quantile
                 run_reps #repetitions
             ]
@@ -141,7 +141,7 @@ def monte_carlo(max_n_reps, constants, ranges, options):
         #check for minimum number of simulations
         if min_sim >= options['min_sim']:
             #get the medians for log likelihoods in groups
-            results_maxs = results_pd.max().sort_values(by="lnL", 
+            results_maxs = results_pd.max().sort_values(by="lnL",
                                                         ascending=False)
             #get top two alleles
             allele_highest_lnL = results_maxs['genotype'].iloc[0]
@@ -154,7 +154,7 @@ def monte_carlo(max_n_reps, constants, ranges, options):
             second_lnL = results_maxs['lnL'].iloc[1]
             best_lnL_ratio = best_lnL - second_lnL
 
-            #compare median likelihoods 
+            #compare median likelihoods
             best_lnL_percentile = best_allele.quantile(0.75)['lnL']
             second_lnL_percentile = second_best.quantile(0.75)['lnL']
             percentile_lnL_ratio = best_lnL_percentile - second_lnL_percentile
@@ -182,7 +182,7 @@ def monte_carlo(max_n_reps, constants, ranges, options):
             #check if p_value threshold is satisfied
 
             if (
-                    high_pval < padjust and 
+                    high_pval < padjust and
                     percentile_lnL_ratio > lnL_threshold and
                     best_lnL_ratio > lnL_threshold
                 ):
@@ -193,13 +193,13 @@ def monte_carlo(max_n_reps, constants, ranges, options):
         #calculate additional repetitions
         reps = 4 * run_reps if reps_round % 2 == 1 else run_reps
 
-        # make sure that the number of reps does not exceed the maximum 
+        # make sure that the number of reps does not exceed the maximum
         reps = max_n_reps - run_reps if reps + run_reps > max_n_reps else reps
 
         reps_round += 1
 
     if options['save_report']:
-        results_pd_csv = pd.DataFrame.from_records(results, 
+        results_pd_csv = pd.DataFrame.from_records(results,
                                                    columns=results_colnames)
         report_path = os.path.join(options['out_path'],
                                    "{}_{}.txt".format(block, name))
@@ -221,10 +221,10 @@ def monte_carlo(max_n_reps, constants, ranges, options):
             "."
         ])
         return ret
-        
+
     high_pval = high_pval if high_pval < 1 else 1
 
-    best_guess = best_allele.sort_values("lnL", 
+    best_guess = best_allele.sort_values("lnL",
                                          ascending=False).head(n=1)
 
     #check for additional percentiles to be calculated
@@ -255,7 +255,7 @@ def monte_carlo(max_n_reps, constants, ranges, options):
         best_guess["genotype"].item(), #genotype n_reps/n_reps
         best_guess["ident"].item(), #identity
         best_guess["r_squared"].item(), #r^2
-        best_guess["lnL"].item(), #median lnLlihood 
+        best_guess["lnL"].item(), #median lnLlihood
         filt, #FILTER
         high_pval, #highest p_value
         best_lnL_ratio, #best lnLlihood ratio
@@ -275,11 +275,11 @@ def rsq(np.ndarray true_values, np.ndarray pred_values):
     prediction (y).
     """
     fr = min(
-        true_values.nonzero()[0][0], 
+        true_values.nonzero()[0][0],
         pred_values.nonzero()[0][0]
     )
     to = 1 + max(
-        true_values.nonzero()[0][-1], 
+        true_values.nonzero()[0][-1],
         pred_values.nonzero()[0][-1]
     )
     true_values = true_values[fr:to]
@@ -292,7 +292,7 @@ def rsq(np.ndarray true_values, np.ndarray pred_values):
 
 def one_repeat(dict constants, tuple ranges,
                int how_many_reps=100):
-    """Calls PCR simulation function, based on PCR products generates 
+    """Calls PCR simulation function, based on PCR products generates
     genotype and calculates model statistics"""
     cdef int total_molecule, first, second, genotype_total, max_allele, floor
     cdef dict parameters
@@ -335,7 +335,7 @@ def one_repeat(dict constants, tuple ranges,
         noise = np.copy(alleles)
         noise[noise > 0] = noise_coef * sum(PCR_products)
         PCR_products += noise
-    
+
     PCR_products = simulate(PCR_products, constants, parameters, floor)
 
     PCR_total_molecules = np.sum(PCR_products)
@@ -343,24 +343,24 @@ def one_repeat(dict constants, tuple ranges,
     #genotype generation
     mid = []
     for allele in range(max_allele):
-        """The binomial distribution is frequently used to model the number of 
-        successes in a sample of size n drawn with replacement from 
+        """The binomial distribution is frequently used to model the number of
+        successes in a sample of size n drawn with replacement from
         a population of size N. If the sampling is carried out without
-        replacement, the draws are not independent and so the resulting 
+        replacement, the draws are not independent and so the resulting
         distribution is a hypergeometric distribution, not a binomial one.
-        However, for N much larger than n, the binomial distribution 
+        However, for N much larger than n, the binomial distribution
         remains a good approximation, and is widely used. [Wikipedia]"""
 
-        n_times = np.random.binomial(genotype_total, 
+        n_times = np.random.binomial(genotype_total,
                                      PCR_products[allele] / PCR_total_molecules)
         allele_molecules = list(repeat(allele, n_times))
         mid.extend(allele_molecules)
 
-    
+
     if sum(alleles > PCR_products) != 0:
         lnL_a = -999999
     else:
-        lnL_a = mhl(alleles, PCR_products) 
+        lnL_a = mhl(alleles, PCR_products)
 
     """Simulate readout from PCR pool and compare it to the readout
     from the input."""
@@ -370,7 +370,7 @@ def one_repeat(dict constants, tuple ranges,
     except ValueError:
         #
         readout = np.zeros(max_allele, dtype=DTYPE)
-    
+
     # model statistics
     alleles_nonzero = alleles.nonzero()[0]
     if readout.nonzero()[0].size == 0:
@@ -385,9 +385,9 @@ def one_repeat(dict constants, tuple ranges,
 
     report = [identity, r_squared, lnL_a, initial, noise_coef]
     prmtrs = [
-        parameters['down'], 
-        parameters['up'], 
-        parameters['capture'], 
+        parameters['down'],
+        parameters['up'],
+        parameters['capture'],
         parameters['efficiency']
     ]
     report.extend(prmtrs)
@@ -432,7 +432,7 @@ def simulate(np.ndarray products, dict constants, dict parameters, int floor):
                 prob_slip = 1 - (1 - prob_down) * (1 - prob_up)
 
                 try:
-                    prob_up_norm = prob_up / (prob_up + prob_down) 
+                    prob_up_norm = prob_up / (prob_up + prob_down)
                 except ZeroDivisionError:
                     logging.warning(("Encountered precision error!\n"
                                      "allele: %s\n"
@@ -443,10 +443,10 @@ def simulate(np.ndarray products, dict constants, dict parameters, int floor):
                                      "prob_down + prob_up: %s\n"
                                      "up: %s\n"
                                      "down: %s\n"
-                                     "seed: %s\n"), al, 
-                                    parameters, constants, prob_up, prob_down, 
-                                    prob_up + prob_down, up, down, seed_n) 
-                
+                                     "seed: %s\n"), al,
+                                    parameters, constants, prob_up, prob_down,
+                                    prob_up + prob_down, up, down, seed_n)
+
                 np.random.seed(seed_n)
                 """number of molecules to which the polymerase bound,
                 i.e. number of successes where number of trials is ct
