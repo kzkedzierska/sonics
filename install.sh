@@ -22,8 +22,8 @@ if [ "X$PATH_TO_PYTHON3" ==  "X" ]; then
 fi
 
 #check Python version
-major=$("$PATH_TO_PYTHON3" --version | cut -f2 -d' ' | cut -f1 -d'.')
-minor=$("$PATH_TO_PYTHON3" --version | cut -f2 -d' ' | cut -f2 -d'.')
+major=$("$PATH_TO_PYTHON3" --version 2>&1 | cut -f2 -d' ' | cut -f1 -d'.')
+minor=$("$PATH_TO_PYTHON3" --version 2>&1 | cut -f2 -d' ' | cut -f2 -d'.')
 if [[ major -lt "3" || minor -lt "4" ]]; then
 	error "SONiCS requires Python version 3.4 or higher."
 fi

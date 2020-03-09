@@ -6,13 +6,21 @@ SONiCS performs dense forward simulations of the PCR of Short Tandem Repeats fro
 
 ## REQUIREMENTS
 
-* Python version >= 3.4 
+* Python version >= 3.4
 * Cython
-* Python modules: 
-  * numpy, 
-  * pandas, 
-  * scipy, 
+* Python modules:
+  * numpy,
+  * pandas,
+  * scipy,
   * pymc
+
+### pymc
+It seems like pymc is no longer available with the newest Python versions. I will look into moving away from the packages, but in the meantime the way around this is to install older Python version and packages compatible with it. For example, one might want to create an environment in conda (I added the necessary yml file).
+
+```bash
+conda create -f conda_env.yml
+```
+This will install all requirements and allow running sonics in the `sonics_requirements` environment.
 
 ## INSTALLATION
 
@@ -53,8 +61,8 @@ genotype1 1001    .       GTGTGTGTGTGTGTGTGTGT    GTGTGTGTGTGTGTGTGTGTGT  0     
 
 ### OUTPUT
 
-The output is saved to sonics_out.txt file in the output directory. It has the following columns: 
-* sample, block and reference for the locus; 
+The output is saved to sonics_out.txt file in the output directory. It has the following columns:
+* sample, block and reference for the locus;
 * genotype called by sonics;
 * descriptors: identity, r^2 and log likelihood of the best model;
 * filter column - possible values:
@@ -71,7 +79,7 @@ The output is saved to sonics_out.txt file in the output directory. It has the f
 * additional ratios calculated.
 
 ```
-head sonics_out.txt 
+head sonics_out.txt
 sample  block   ref     genotype        identity        r_squared       lnL     filter  MWUtes_pval     best_lnL_ratio  median_lnL_ratio        repeats additional_ratios
 sampleXYZ  Block123   .       9/10    0.9178743961352657      0.9586113691329956      -7.930843070149422      PASS    9.86432656589e-11       59.7759855255   66.4114566904   100     0.5|79.19670724088837;0.8|65.61195204472192;0.9|66.41145669038094
 
@@ -79,14 +87,14 @@ sampleXYZ  Block123   .       9/10    0.9178743961352657      0.9586113691329956
 
 #### Monte Carlo mode
 
-The output is saved to sonics_out.txt file in the output directory. It has the following columns: 
-* sample, block and reference for the locus; 
+The output is saved to sonics_out.txt file in the output directory. It has the following columns:
+* sample, block and reference for the locus;
 * genotype called by sonics;
 * descriptors - their best and 75th percentile values: identity, r^2 and log-likelihood of the best model;
 * number of run repetitions.
 
 ```
-sample  block   ref     genotype        identity        identity_75th_percentile        r_squared       r_squared_75th_percentile       lnL     lnL_75th_percentile     repeats 
+sample  block   ref     genotype        identity        identity_75th_percentile        r_squared       r_squared_75th_percentile       lnL     lnL_75th_percentile     repeats
 sampleXYZ  Block123   .       9/10    0.893719806763285       0.8985507246376812      0.88215172290802        0.9494138956069946      -5.635919340653118      -13.885656443890184     1000
 ```
 
@@ -96,7 +104,7 @@ sampleXYZ  Block123   .       9/10    0.893719806763285       0.8985507246376812
 Another approach to calling genotypes from capture datasets is to try to run a large number of simulations that saturate the parameter space and then pick the genotype that has the highest likelihood at varying quantiles of the distributions. SONiCS implements this approach, and it can be invoked by using the --monte_carlo option.
 
 #### Saving all simulations
-SONiCS can store the parameters and descriptors from all simulations. When run with **--save_report** it will dump the full report (with one simulation parameters and descriptors per line) into a csv file in the output directory. 
+SONiCS can store the parameters and descriptors from all simulations. When run with **--save_report** it will dump the full report (with one simulation parameters and descriptors per line) into a csv file in the output directory.
 
 #### Choosing starting alleles
 SONiCS can choose input alleles randomly or half randomly - one allele is always the one with the highest support. By default sonics run in half_random mode, that can be changed to random by specifying **--random**.
@@ -115,14 +123,14 @@ REF=11, MOTIF=GT, GT=0|54;1|27;2|914;4|15
 * **-r, --repetitions n_repetitions** - maximum number of repetitions per genotype, default: 1000
 * **-y, --pcr_cycles n_pcr_cycles** - number of PCR cycles before introducing the capture step; default: 12
 * **-c, --after_capture n_after_capture** - number of PCR cycles after the introduction of the capture step; default: 12
-* **-p, --padjusted p_adjust_threshold** - threshold for Bonferroni corrected p-value of Mann Whitney U test of the log-likelihood distributions; default: 0.01 
+* **-p, --padjusted p_adjust_threshold** - threshold for Bonferroni corrected p-value of Mann Whitney U test of the log-likelihood distributions; default: 0.01
 * **-i, --lnL_threshold lnL_threshold** - threshold for max and 75th percentile lnL ratios
 * **--add_ratios** - Semicolon separated additional ratios to be calculated and reported in the last column of the output file.
 Example: 0.5;0.6;0.8;0.9 means that median, 60th, 80th and 90th lnL percentile ratios will be calculated and reported.
 
 ### PARAMETERS SPECIFIC FOR PCR
 
-Parameters are chosen on random from the given open interval before each simulation. 
+Parameters are chosen on random from the given open interval before each simulation.
 
 * **-e, --efficiency N N** - PCR efficiency default: (0.001, 0.1)
 * **-d, --down N N** - probability of slippage down - synthesizing molecule with lower repeat counts; default: (0, 0.1)
@@ -276,5 +284,5 @@ optional arguments:
                         higher than the probability of up-stutter.
   -v, --verbose         Verbose mode.
   --version             show program's version number and exit
-  
+
 ```
