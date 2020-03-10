@@ -11,21 +11,10 @@ SONiCS performs dense forward simulations of the PCR of Short Tandem Repeats fro
 * Python modules:
   * numpy,
   * pandas,
-  * scipy,
-  * pymc
+  * scipy
 
 ### pymc
-It seems like pymc is no longer available with the newest Python versions. I will look into moving away from the packages, but in the meantime the way around this is to install older Python version and packages compatible with it.
-
-For example, one might want to create an environment in conda (I added the necessary yml file).
-
-```bash
-conda create -f conda_env.yml
-```
-
-This will install all requirements and allow running sonics in the `sonics_requirements` environment.
-
-*[Conda](https://docs.conda.io/projects/conda/en/latest/index.html) is an open-source package management system and environment management system that runs on Windows, macOS, and Linux. Conda quickly installs, runs, and updates packages and their dependencies.* I would recommend [installing Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) - which comes with less pre-installed packages than Anaconda.
+It seems like pymc is no longer available with the newest Python versions. I extracted the relevant functions and now compile them while installing. Big thanks to amazing people from [PyMC team:](https://github.com/pymc-devs/pymc) Chris Fonnesbeck, Anand Patil, David Huard, John Salvatier.
 
 ## INSTALLATION
 
