@@ -1,0 +1,5 @@
+cython
+numpy
+pandas
+python>=3.5
+scipy
