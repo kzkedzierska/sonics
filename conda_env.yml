@@ -1,4 +1,4 @@
-name: sonics_requirements
+name: sonics_env
 channels:
   - anaconda
   - defaults

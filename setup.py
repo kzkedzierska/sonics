@@ -27,13 +27,14 @@ the most probable genotype based on the log likelihood distributions
 from all such simulations.
 """
 
-extmodules = [
-    #Extension("pymc_extracted",
-    #          sources=['pymc_extracted.f'])#,
-]
+# TODO: put on pip, then this is necessary
+# extmodules = [
+#    Extension("pymc_extracted",
+#              sources=['pymc_extracted.f'])#,
+#]
 
 setup(
-        ext_modules=[cythonize('sonics.pyx')],
+        ext_modules=cythonize('sonics.pyx', language_level=3),
         include_paths=[numpy.get_include()],
         name="sonics",
         author="Kasia Kedzierska",

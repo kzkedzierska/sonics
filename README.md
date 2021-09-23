@@ -11,25 +11,38 @@ SONiCS performs dense forward simulations of the PCR of Short Tandem Repeats fro
 * Python modules:
   * numpy,
   * pandas,
-  * scipy,
-  * pymc
+  * scipy
 
 ### pymc
-It seems like pymc is no longer available with the newest Python versions. I will look into moving away from the packages, but in the meantime the way around this is to install older Python version and packages compatible with it.
+Earlier versions of sonics required pymc, which stopped being supported as it
+evolved into PyMC3. Unfortunately, the new version was missing the one function
+I needed so I copied it into `pymc_extracted.f` file which is being compiled during installation. 
 
-For example, one might want to create an environment in conda (I added the necessary yml file).
+### conda
+
+I added an environment file that holds all the requirements for sonics. I recommend installing conda environment from this file, as it should make sure that installation of sonics will be successful.
 
 ```bash
-conda create -f conda_env.yml
+conda env create -f conda_env.yml
 ```
 
-This will install all requirements and allow running sonics in the `sonics_requirements` environment.
+This will install all requirements and allow running sonics in the `sonics_env` environment.
 
 *[Conda](https://docs.conda.io/projects/conda/en/latest/index.html) is an open-source package management system and environment management system that runs on Windows, macOS, and Linux. Conda quickly installs, runs, and updates packages and their dependencies.* I would recommend [installing Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) - which comes with less pre-installed packages than Anaconda.
 
 ## INSTALLATION
 
 The install.sh script checks for all the dependencies and requirements, and informs the user if a package is not installed. The user should provide the path to the version of python3 that they want SONiCS to use, in cases where more than one version of python3 is installed. At the end, the install.sh script runs a simple test and reports on whether everything is working as expected. Run the install.sh  script as follows:
+
+
+If there's conda `sonics_env`:
+
+```bash
+conda activate sonics_env
+bash install.sh 
+```
+
+otherwise you might need to provide path to Python3:
 
 ```bash
 bash install.sh [PATH_TO_PYTHON3]

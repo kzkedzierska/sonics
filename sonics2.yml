@@ -1,0 +1,11 @@
+name: sonics_env
+channels:
+  - anaconda
+  - defaults
+dependencies:
+  - cython
+  - numpy
+  - pandas
+  - pip
+  - python
+  - scipy
