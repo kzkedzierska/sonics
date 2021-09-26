@@ -5,13 +5,14 @@
 SONiCS performs dense forward simulations of the PCR of Short Tandem Repeats from capture experiments, calculates the likelihood of generating the provided read support (reads per allele) out of the final PCR pool and determines the most probable genotype based on the log likelihood distributions from all such simulations.
 
 ## REQUIREMENTS
-
-* Python version >= 3.4
+* Python version >= 3.6*
 * Cython
 * Python modules:
   * numpy,
   * pandas,
   * scipy
+
+*since SONICS was written the support for certain versions of Python and respective packages has been dropped by creators. While SONICS, in theory, should work with Python >= 3.4, I would strongly recommend installing the conda requirements as those have been updated and tested.
 
 ### pymc
 Earlier versions of sonics required pymc, which stopped being supported as it evolved into PyMC3. Unfortunately, the new version was missing the one function I needed so I copied it into `pymc_extracted.f` file which is being compiled during installation. 
