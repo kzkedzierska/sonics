@@ -14,9 +14,7 @@ SONiCS performs dense forward simulations of the PCR of Short Tandem Repeats fro
   * scipy
 
 ### pymc
-Earlier versions of sonics required pymc, which stopped being supported as it
-evolved into PyMC3. Unfortunately, the new version was missing the one function
-I needed so I copied it into `pymc_extracted.f` file which is being compiled during installation. 
+Earlier versions of sonics required pymc, which stopped being supported as it evolved into PyMC3. Unfortunately, the new version was missing the one function I needed so I copied it into `pymc_extracted.f` file which is being compiled during installation. 
 
 ### conda
 
